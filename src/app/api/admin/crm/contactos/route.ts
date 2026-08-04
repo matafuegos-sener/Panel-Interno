@@ -7,11 +7,11 @@ export async function GET() {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("contactos")
-    .select(
-      "id, razon_social, nombre_comercial, tipo_perfil, provincia, contacto, telefono, mail_1, activo, tier, fuente, categoria, whatsapp_enviado, whatsapp_enviado_en, whatsapp_sin_wa, mail_enviado, mail_enviado_en"
-    );
+  // select("*") a propósito, no una lista fija -- mismo motivo que
+  // /api/admin/leads-base: si mañana se agrega una columna nueva a
+  // `contactos`, este endpoint no se rompe hasta que la migración esté
+  // aplicada.
+  const { data, error } = await supabaseAdmin.from("contactos").select("*");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

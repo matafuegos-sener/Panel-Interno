@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-const COLUMNAS =
-  "id, nombre, rubro, ciudad, direccion, telefono, whatsapp, website, red_social, rating, reviews, price_level, business_status, maps_url, matricula, fecha_inscripcion, oneroso, sanciones, tier, email, fuente, categoria, notas, whatsapp_enviado, whatsapp_enviado_en, whatsapp_sin_wa, mail_enviado, mail_enviado_en";
 const TAMANO_PAGINA = 1000;
 
 export async function GET() {
@@ -11,6 +9,12 @@ export async function GET() {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
+  // select("*") a propósito, no una lista fija de columnas: este endpoint lo
+  // usan tanto BaseTrackingView (solo lectura, columnas viejas) como el CRM
+  // unificado (columnas nuevas de la migración 0005) -- con "*" cada uno
+  // sigue funcionando con las columnas que existan en la tabla en cada
+  // momento, sin que agregar un campo nuevo rompa al otro consumidor.
+  //
   // Supabase/PostgREST corta cada respuesta en 1000 filas por default -- hay
   // que paginar con .range() para traer la base completa (9.500+ filas),
   // si no, los rubros que quedan al final del orden de inserción no llegan.
@@ -18,7 +22,7 @@ export async function GET() {
   for (let desde = 0; ; desde += TAMANO_PAGINA) {
     const { data, error } = await supabaseAdmin
       .from("leads_base")
-      .select(COLUMNAS)
+      .select("*")
       .range(desde, desde + TAMANO_PAGINA - 1);
 
     if (error) {
