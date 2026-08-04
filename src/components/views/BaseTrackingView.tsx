@@ -22,7 +22,7 @@ export default function BaseTrackingView() {
   useEffect(() => {
     fetch("/api/admin/leads-base")
       .then((r) => r.json())
-      .then((data) => setTodos(Array.isArray(data) ? data : []));
+      .then((data) => setTodos(Array.isArray(data) ? data.filter((r: LeadBase) => r.telefono || r.email) : []));
   }, []);
 
   const rubros = useMemo(() => uniqueSorted(todos ?? [], "rubro"), [todos]);
@@ -52,7 +52,7 @@ export default function BaseTrackingView() {
       <div className="mb-6">
         <h1 className="text-xl font-bold text-[var(--color-brand-dark)]">Base Tracking</h1>
         <p className="text-sm text-[var(--color-text-muted)]">
-          {todos ? `${todos.length} contactos trackeados` : "Cargando…"} — traé un lote por criterio y trabajalo, no navegues la base entera
+          {todos ? `${todos.length} contactos con teléfono o email` : "Cargando…"} — traé un lote por criterio y trabajalo, no navegues la base entera
         </p>
       </div>
 
