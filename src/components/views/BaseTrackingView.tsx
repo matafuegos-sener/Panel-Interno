@@ -125,7 +125,18 @@ export default function BaseTrackingView() {
                       <td className="px-4 py-3 font-medium text-[var(--color-brand-dark)]">{r.nombre || <em className="text-xs">sin dato</em>}</td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.rubro || "—"}</td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.tier || "—"}</td>
-                      <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.whatsapp || r.telefono || <em className="text-xs">sin dato</em>}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-muted)]">
+                        {r.telefono ? (
+                          <>
+                            {r.telefono}
+                            {r.whatsapp === "SI" && (
+                              <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-[var(--color-brand-red-subtle)] text-[var(--color-brand-red)]">WA</span>
+                            )}
+                          </>
+                        ) : (
+                          <em className="text-xs">sin dato</em>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.email || <em className="text-xs">sin dato</em>}</td>
                     </tr>
                   ))}
@@ -150,13 +161,15 @@ function uniqueSorted(rows: LeadBase[], key: "rubro" | "tier" | "fuente"): strin
   return [...new Set(rows.map((r) => r[key]).filter((v): v is string => !!v))].sort();
 }
 
+const WHATSAPP_LABEL: Record<string, string> = { SI: "Sí", NO: "No", VERIFICAR: "A verificar" };
+
 function LeadPanel({ lead, onClose }: { lead: LeadBase; onClose: () => void }) {
   const campos: [string, string | number | null][] = [
     ["Rubro", lead.rubro],
     ["Ciudad", lead.ciudad],
     ["Dirección", lead.direccion],
     ["Teléfono", lead.telefono],
-    ["WhatsApp", lead.whatsapp],
+    ["¿Tiene WhatsApp?", lead.whatsapp ? WHATSAPP_LABEL[lead.whatsapp] ?? lead.whatsapp : null],
     ["Email", lead.email],
     ["Website", lead.website],
     ["Red social", lead.red_social],
