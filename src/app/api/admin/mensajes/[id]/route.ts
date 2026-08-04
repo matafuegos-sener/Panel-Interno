@@ -3,6 +3,22 @@ import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { MensajeInput } from "@/data/mensajes";
 
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!(await isAdminAuthed())) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const { data, error } = await supabaseAdmin.from("mensajes_predefinidos").select("*").eq("id", id).single();
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 404 });
+  }
+  return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
+}
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

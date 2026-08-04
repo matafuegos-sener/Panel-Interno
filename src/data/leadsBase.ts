@@ -20,6 +20,12 @@ export interface LeadBase {
   tier: string | null;
   email: string | null;
   fuente: string | null;
+  categoria: string;
   notas: string | null;
+  whatsapp_enviado: boolean;
+  whatsapp_enviado_en: string | null;
+  whatsapp_sin_wa: boolean;
+  mail_enviado: boolean;
+  mail_enviado_en: string | null;
   created_at: string;
 }

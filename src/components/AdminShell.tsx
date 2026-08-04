@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import MensajesPredefinidosView from "@/components/views/MensajesPredefinidosView";
 import CrmView from "@/components/views/CrmView";
-import PlaceholderView from "@/components/views/PlaceholderView";
+import EnviosMailView from "@/components/views/EnviosMailView";
+import WhatsappView from "@/components/views/WhatsappView";
 import BaseTrackingView from "@/components/views/BaseTrackingView";
 
 type NavItem = { id: string; label: string; sub?: boolean };
@@ -61,7 +63,10 @@ export default function AdminShell() {
   return (
     <div className="flex min-h-screen">
       <nav className="w-[220px] flex-shrink-0 bg-[var(--color-surface)] border-r border-[var(--color-border)] py-6 flex flex-col">
-        <p className="type-label text-[var(--color-brand-red)] px-6 mb-8">Panel interno · Sener</p>
+        <div className="px-6 mb-8">
+          <Image src="/logo-sener.png" alt="Matafuegos Sener" width={1004} height={355} style={{ height: "32px", width: "auto" }} priority />
+          <p className="type-label text-[var(--color-brand-red)] mt-2">Panel interno</p>
+        </div>
         <ul className="flex-1">
           {renderGrupo("Trabajo", true)}
           {renderItem(ITEM_CRM)}
@@ -91,13 +96,9 @@ export default function AdminShell() {
 
       <main className="flex-1 min-w-0 px-8 py-10 overflow-x-auto">
         {activo === "crm" && <CrmView />}
-        {activo === "envios" && (
-          <PlaceholderView titulo="Envío de mails" descripcion="Captación clientes — tandas de mail" />
-        )}
+        {activo === "envios" && <EnviosMailView />}
         {activo === "mensajes-mail" && <MensajesPredefinidosView canal="mail" />}
-        {activo === "whatsapp" && (
-          <PlaceholderView titulo="WhatsApp" descripcion="Captación clientes — tandas de WhatsApp" />
-        )}
+        {activo === "whatsapp" && <WhatsappView />}
         {activo === "mensajes-whatsapp" && <MensajesPredefinidosView canal="whatsapp" />}
         {activo === "base-tracking" && <BaseTrackingView />}
       </main>

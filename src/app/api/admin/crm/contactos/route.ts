@@ -9,7 +9,9 @@ export async function GET() {
 
   const { data, error } = await supabaseAdmin
     .from("contactos")
-    .select("id, razon_social, nombre_comercial, tipo_perfil, provincia, contacto, telefono, mail_1, activo");
+    .select(
+      "id, razon_social, nombre_comercial, tipo_perfil, provincia, contacto, telefono, mail_1, activo, tier, fuente, categoria, whatsapp_enviado, whatsapp_enviado_en, whatsapp_sin_wa, mail_enviado, mail_enviado_en"
+    );
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

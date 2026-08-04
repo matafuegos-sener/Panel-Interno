@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { AccionNueva } from "@/data/crm";
+import { AccionNueva, TablaOrigen, TIPO_A_CATEGORIA } from "@/data/crm";
 
 const REGISTRADO_POR = "Admin";
 
@@ -15,9 +15,11 @@ export async function POST(
 
   const { id } = await params;
   const body = await req.json().catch(() => null);
+  const tabla: TablaOrigen | null = body?.tabla === "contactos" || body?.tabla === "leads_base" ? body.tabla : null;
   if (
     !body ||
     typeof body !== "object" ||
+    !tabla ||
     typeof body.tipo !== "string" ||
     typeof body.detalle !== "string" ||
     !body.detalle.trim()
@@ -29,6 +31,7 @@ export async function POST(
     .from("interacciones")
     .insert({
       contacto_id: id,
+      tabla_origen: tabla,
       tipo: body.tipo,
       detalle: body.detalle.trim(),
       registrado_por: REGISTRADO_POR,
@@ -40,11 +43,17 @@ export async function POST(
     return NextResponse.json({ error: errInt.message }, { status: 500 });
   }
 
+  const categoriaNueva = TIPO_A_CATEGORIA[body.tipo];
+  if (categoriaNueva) {
+    await supabaseAdmin.from(tabla).update({ categoria: categoriaNueva }).eq("id", id);
+  }
+
   const accionesNuevas: AccionNueva[] = Array.isArray(body.acciones) ? body.acciones : [];
   const validAcciones = accionesNuevas
     .filter((a) => a?.descripcion?.trim() && a?.fecha_ejecucion)
     .map((a) => ({
       contacto_id: id,
+      tabla_origen: tabla,
       interaccion_id: nuevaInteraccion.id,
       descripcion: a.descripcion.trim(),
       fecha_ejecucion: a.fecha_ejecucion,

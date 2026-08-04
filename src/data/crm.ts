@@ -1,3 +1,9 @@
+// Discriminador puramente técnico -- qué tabla de Supabase guarda una fila
+// dada. Nunca se muestra en la UI. Hay una sola base de contactos de
+// negocio; esto es plomería interna para saber a qué tabla pegarle en cada
+// API route.
+export type TablaOrigen = "contactos" | "leads_base";
+
 export interface Contacto {
   id: string;
   razon_social: string | null;
@@ -8,12 +14,24 @@ export interface Contacto {
   telefono: string | null;
   mail_1: string | null;
   activo: boolean;
+  tier: string | null;
+  fuente: string | null;
+  categoria: string;
+  whatsapp_enviado: boolean;
+  whatsapp_enviado_en: string | null;
+  whatsapp_sin_wa: boolean;
+  mail_enviado: boolean;
+  mail_enviado_en: string | null;
   created_at: string;
 }
 
+// Tipos de interacción que además mueven la categoría del contacto (ver
+// CATEGORIA_LABEL en crmUnificado.ts) -- las demás (nota, cotización,
+// problema) son notas internas, no un canal de contacto nuevo.
 export const TIPO_INTERACCION: Record<string, string> = {
   llamada: "Llamada",
   mail: "Mail",
+  whatsapp: "WhatsApp",
   reunion: "Reunión",
   nota: "Nota",
   cotizacion_pedida: "Pidió cotización",
@@ -21,9 +39,21 @@ export const TIPO_INTERACCION: Record<string, string> = {
   problema: "Problema",
 };
 
+// Qué categoría le queda al contacto cuando se registra una interacción de
+// este tipo (ver CATEGORIA_LABEL en crmUnificado.ts). Los tipos que no están
+// acá (nota, cotización, problema) son notas internas -- no cambian la
+// categoría.
+export const TIPO_A_CATEGORIA: Partial<Record<string, string>> = {
+  llamada: "contactado_llamada",
+  mail: "contactado_mail",
+  whatsapp: "contactado_whatsapp",
+  reunion: "contactado_reunion",
+};
+
 export interface Interaccion {
   id: string;
   contacto_id: string;
+  tabla_origen: TablaOrigen;
   tipo: string;
   detalle: string;
   registrado_por: string;
@@ -33,6 +63,7 @@ export interface Interaccion {
 export interface Accion {
   id: string;
   contacto_id: string;
+  tabla_origen: TablaOrigen;
   interaccion_id: string | null;
   descripcion: string;
   fecha_ejecucion: string;

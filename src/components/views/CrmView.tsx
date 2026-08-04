@@ -3,53 +3,39 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { Accion, Contacto, Interaccion, TIPO_INTERACCION } from "@/data/crm";
+import { LeadBase } from "@/data/leadsBase";
+import { CATEGORIA_LABEL, ContactoUnificado } from "@/data/crmUnificado";
+import { useContactosUnificados } from "@/lib/useContactosUnificados";
+import FiltrosContactos, { FILTRO_VACIO, FiltroContactosState, aplicaFiltro } from "@/components/FiltrosContactos";
 import Modal from "@/components/Modal";
 import { fieldLabelClass, fieldInputClass, btnPrimaryClass, btnSecondaryClass, panelCardClass } from "@/components/formStyles";
-
-function normalizarBusqueda(s: string): string {
-  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-}
 
 function fmtFecha(d: string): string {
   return new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+const WHATSAPP_LABEL: Record<string, string> = { SI: "Sí", NO: "No", VERIFICAR: "A verificar" };
+
 export default function CrmView() {
-  const [todos, setTodos] = useState<Contacto[] | null>(null);
-  const [tipo, setTipo] = useState("");
-  const [provincia, setProvincia] = useState("");
-  const [activo, setActivo] = useState("");
-  const [busqueda, setBusqueda] = useState("");
-  const [lote, setLote] = useState<Contacto[] | null>(null);
-  const [seleccionado, setSeleccionado] = useState<Contacto | null>(null);
-
-  useEffect(() => {
-    fetch("/api/admin/crm/contactos")
-      .then((r) => r.json())
-      .then((data) => setTodos(Array.isArray(data) ? data : []));
-  }, []);
-
-  const tipos = useMemo(() => uniqueSorted(todos ?? [], "tipo_perfil"), [todos]);
-  const provincias = useMemo(() => uniqueSorted(todos ?? [], "provincia"), [todos]);
+  const { contactos, tracking, unificados } = useContactosUnificados();
+  const [filtro, setFiltro] = useState<FiltroContactosState>(FILTRO_VACIO);
+  const [lote, setLote] = useState<ContactoUnificado[] | null>(null);
+  const [seleccionado, setSeleccionado] = useState<ContactoUnificado | null>(null);
 
   function traerLote() {
-    if (!todos) return;
-    const q = normalizarBusqueda(busqueda.trim());
-    const resultado = todos
-      .filter((r) => {
-        if (tipo && r.tipo_perfil !== tipo) return false;
-        if (provincia && r.provincia !== provincia) return false;
-        if (activo === "si" && !r.activo) return false;
-        if (activo === "no" && r.activo) return false;
-        if (q) {
-          const nombre = normalizarBusqueda(`${r.razon_social ?? ""} ${r.nombre_comercial ?? ""}`);
-          if (!nombre.includes(q)) return false;
-        }
-        return true;
-      })
-      .slice(0, 100);
-    setLote(resultado);
+    if (!unificados) return;
+    setLote(unificados.filter((r) => aplicaFiltro(r, filtro)).slice(0, 100));
   }
+
+  const rawContacto = useMemo(() => {
+    if (!seleccionado || seleccionado.tabla !== "contactos" || !contactos) return null;
+    return contactos.find((c) => c.id === seleccionado.id) ?? null;
+  }, [seleccionado, contactos]);
+
+  const rawTracking = useMemo(() => {
+    if (!seleccionado || seleccionado.tabla !== "leads_base" || !tracking) return null;
+    return tracking.find((t) => t.id === seleccionado.id) ?? null;
+  }, [seleccionado, tracking]);
 
   return (
     <div>
@@ -58,38 +44,15 @@ export default function CrmView() {
         <p className="text-sm text-[var(--color-text-muted)]">Traé un lote por criterio y trabajalo — no navegues la base entera</p>
       </div>
 
-      <div className={`${panelCardClass} p-4 flex flex-wrap items-center gap-2 mb-6`}>
-        <select className={selectClass} value={tipo} onChange={(e) => setTipo(e.target.value)}>
-          <option value="">Tipo — todos</option>
-          {tipos.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-        <select className={selectClass} value={provincia} onChange={(e) => setProvincia(e.target.value)}>
-          <option value="">Provincia — todas</option>
-          {provincias.map((p) => (
-            <option key={p} value={p}>{p}</option>
-          ))}
-        </select>
-        <select className={selectClass} value={activo} onChange={(e) => setActivo(e.target.value)}>
-          <option value="">Todos</option>
-          <option value="si">Solo activos</option>
-          <option value="no">Solo inactivos</option>
-        </select>
-        <input
-          className={`${selectClass} flex-1 min-w-[160px]`}
-          type="search"
-          placeholder="Buscar empresa…"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && traerLote()}
-        />
-        <button type="button" onClick={traerLote} className={`${btnPrimaryClass} ml-auto`}>
-          Cargar
-        </button>
+      <div className={`${panelCardClass} p-4 mb-6`}>
+        <FiltrosContactos rows={unificados ?? []} value={filtro} onChange={setFiltro} onFiltrar={traerLote} mostrarBusqueda />
       </div>
 
-      {lote === null && (
+      {unificados === null && (
+        <p className="text-sm text-[var(--color-text-muted)] py-12 text-center">Cargando contactos…</p>
+      )}
+
+      {unificados !== null && lote === null && (
         <p className="text-sm text-[var(--color-text-muted)] py-12 text-center border border-dashed border-[var(--color-border)] rounded-2xl">
           Elegí un criterio y cargá el lote para empezar a trabajar.
         </p>
@@ -110,19 +73,23 @@ export default function CrmView() {
                 <thead>
                   <tr className="bg-[var(--color-surface-subtle)] border-b border-[var(--color-border)]">
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Empresa</th>
-                    <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Persona de contacto</th>
+                    <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Rubro</th>
+                    <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Tier</th>
+                    <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Categoría</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Teléfono</th>
                   </tr>
                 </thead>
                 <tbody>
                   {lote.map((r) => (
                     <tr
-                      key={r.id}
+                      key={`${r.tabla}-${r.id}`}
                       className="border-b border-[var(--color-border-subtle)] last:border-0 cursor-pointer hover:bg-[var(--color-surface-subtle)] transition-colors"
                       onClick={() => setSeleccionado(r)}
                     >
-                      <td className="px-4 py-3 font-medium text-[var(--color-brand-dark)]">{r.razon_social || r.nombre_comercial || "—"}</td>
-                      <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.contacto || <em className="text-xs">sin dato</em>}</td>
+                      <td className="px-4 py-3 font-medium text-[var(--color-brand-dark)]">{r.nombre}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.rubro || "—"}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.tier || "—"}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-muted)]">{CATEGORIA_LABEL[r.categoria] ?? r.categoria}</td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.telefono || <em className="text-xs">sin dato</em>}</td>
                     </tr>
                   ))}
@@ -134,23 +101,34 @@ export default function CrmView() {
       )}
 
       <Modal open={seleccionado !== null} onClose={() => setSeleccionado(null)} maxWidthClass="max-w-2xl">
-        {seleccionado && <ContactoPanel contacto={seleccionado} onClose={() => setSeleccionado(null)} />}
+        {seleccionado && (
+          <ContactoPanel
+            unificado={seleccionado}
+            rawContacto={rawContacto}
+            rawTracking={rawTracking}
+            onClose={() => setSeleccionado(null)}
+          />
+        )}
       </Modal>
     </div>
   );
 }
 
-const selectClass =
-  "px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-brand-gray)] bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-red)] focus:border-transparent";
-
-function uniqueSorted(rows: Contacto[], key: "tipo_perfil" | "provincia"): string[] {
-  return [...new Set(rows.map((r) => r[key]).filter((v): v is string => !!v))].sort();
-}
-
-function ContactoPanel({ contacto, onClose }: { contacto: Contacto; onClose: () => void }) {
+function ContactoPanel({
+  unificado,
+  rawContacto,
+  rawTracking,
+  onClose,
+}: {
+  unificado: ContactoUnificado;
+  rawContacto: Contacto | null;
+  rawTracking: LeadBase | null;
+  onClose: () => void;
+}) {
+  const { id, tabla } = unificado;
   const [interacciones, setInteracciones] = useState<Interaccion[] | null>(null);
   const [acciones, setAcciones] = useState<Accion[]>([]);
-  const [nombreContacto, setNombreContacto] = useState(contacto.contacto ?? "");
+  const [nombreContacto, setNombreContacto] = useState(rawContacto?.contacto ?? "");
   const [guardandoContacto, setGuardandoContacto] = useState(false);
 
   const [tipo, setTipo] = useState(Object.keys(TIPO_INTERACCION)[0]);
@@ -159,8 +137,7 @@ function ContactoPanel({ contacto, onClose }: { contacto: Contacto; onClose: () 
   const [registrando, setRegistrando] = useState(false);
 
   function cargarHistorial() {
-    setInteracciones(null);
-    fetch(`/api/admin/crm/contactos/${contacto.id}`)
+    fetch(`/api/admin/crm/contactos/${id}?tabla=${tabla}`)
       .then((r) => r.json())
       .then((data) => {
         setInteracciones(data.interacciones ?? []);
@@ -168,11 +145,14 @@ function ContactoPanel({ contacto, onClose }: { contacto: Contacto; onClose: () 
       });
   }
 
-  useEffect(cargarHistorial, [contacto.id]);
+  useEffect(() => {
+    cargarHistorial();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, tabla]);
 
   async function guardarContacto() {
     setGuardandoContacto(true);
-    await fetch(`/api/admin/crm/contactos/${contacto.id}`, {
+    await fetch(`/api/admin/crm/contactos/${id}?tabla=contactos`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ contacto: nombreContacto.trim() || null }),
@@ -183,10 +163,10 @@ function ContactoPanel({ contacto, onClose }: { contacto: Contacto; onClose: () 
   async function registrarInteraccion(e: React.FormEvent) {
     e.preventDefault();
     setRegistrando(true);
-    await fetch(`/api/admin/crm/contactos/${contacto.id}/interacciones`, {
+    await fetch(`/api/admin/crm/contactos/${id}/interacciones`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tipo, detalle: detalle.trim(), acciones: accionesNuevas }),
+      body: JSON.stringify({ tabla, tipo, detalle: detalle.trim(), acciones: accionesNuevas }),
     });
     setDetalle("");
     setAccionesNuevas([{ descripcion: "", fecha_ejecucion: "" }]);
@@ -194,26 +174,75 @@ function ContactoPanel({ contacto, onClose }: { contacto: Contacto; onClose: () 
     cargarHistorial();
   }
 
+  const camposTracking: [string, string | number | null][] = rawTracking
+    ? [
+        ["Ciudad", rawTracking.ciudad],
+        ["Dirección", rawTracking.direccion],
+        ["¿Tiene WhatsApp?", rawTracking.whatsapp ? WHATSAPP_LABEL[rawTracking.whatsapp] ?? rawTracking.whatsapp : null],
+        ["Website", rawTracking.website],
+        ["Red social", rawTracking.red_social],
+        ["Rating", rawTracking.rating],
+        ["Reviews", rawTracking.reviews],
+        ["Matrícula", rawTracking.matricula],
+        ["Fecha inscripción", rawTracking.fecha_inscripcion],
+        ["Notas", rawTracking.notas],
+      ]
+    : [];
+
   return (
     <div className={`${panelCardClass} p-6 sm:p-8`}>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-bold text-[var(--color-brand-dark)]">{contacto.razon_social || contacto.nombre_comercial}</h2>
+        <div>
+          <h2 className="text-lg font-bold text-[var(--color-brand-dark)]">{unificado.nombre}</h2>
+          <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-xs border border-[var(--color-border)] text-[var(--color-text-muted)]">
+            {CATEGORIA_LABEL[unificado.categoria] ?? unificado.categoria}
+          </span>
+        </div>
         <button type="button" onClick={onClose} className="text-[var(--color-brand-gray)] hover:text-[var(--color-brand-dark)]">
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      <div className="flex flex-wrap items-end gap-4 pb-6 mb-6 border-b border-[var(--color-border-subtle)]">
-        <label className="min-w-[200px]">
-          <span className={fieldLabelClass}>Persona de contacto</span>
-          <input className={fieldInputClass} value={nombreContacto} onChange={(e) => setNombreContacto(e.target.value)} placeholder="Nombre de quien atiende" />
-        </label>
-        <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Tel</span>{contacto.telefono || "sin dato"}</p>
-        <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Mail</span>{contacto.mail_1 || "sin dato"}</p>
-        <button type="button" onClick={guardarContacto} disabled={guardandoContacto} className={btnSecondaryClass}>
-          Guardar persona de contacto
-        </button>
-      </div>
+      {tabla === "contactos" ? (
+        <div className="flex flex-wrap items-end gap-4 pb-6 mb-6 border-b border-[var(--color-border-subtle)]">
+          <label className="min-w-[200px]">
+            <span className={fieldLabelClass}>Persona de contacto</span>
+            <input className={fieldInputClass} value={nombreContacto} onChange={(e) => setNombreContacto(e.target.value)} placeholder="Nombre de quien atiende" />
+          </label>
+          <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Tel</span>{unificado.telefono || "sin dato"}</p>
+          <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Mail</span>{unificado.email || "sin dato"}</p>
+          <button type="button" onClick={guardarContacto} disabled={guardandoContacto} className={btnSecondaryClass}>
+            Guardar persona de contacto
+          </button>
+        </div>
+      ) : (
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 pb-6 mb-6 border-b border-[var(--color-border-subtle)]">
+          <div>
+            <dt className="type-label text-[var(--color-text-muted)]">Teléfono</dt>
+            <dd className="text-sm text-[var(--color-brand-dark)]">{unificado.telefono || "sin dato"}</dd>
+          </div>
+          <div>
+            <dt className="type-label text-[var(--color-text-muted)]">Email</dt>
+            <dd className="text-sm text-[var(--color-brand-dark)]">{unificado.email || "sin dato"}</dd>
+          </div>
+          {camposTracking
+            .filter(([, valor]) => valor !== null && valor !== undefined && valor !== "")
+            .map(([label, valor]) => (
+              <div key={label}>
+                <dt className="type-label text-[var(--color-text-muted)]">{label}</dt>
+                <dd className="text-sm text-[var(--color-brand-dark)]">
+                  {label === "Website" || label === "Red social" ? (
+                    <a href={String(valor)} target="_blank" rel="noreferrer" className="text-[var(--color-brand-red)] hover:underline break-all">
+                      {valor}
+                    </a>
+                  ) : (
+                    valor
+                  )}
+                </dd>
+              </div>
+            ))}
+        </dl>
+      )}
 
       {acciones.length > 0 && (
         <div className="p-4 rounded-lg bg-[var(--color-brand-red-subtle)] mb-6">
@@ -229,7 +258,7 @@ function ContactoPanel({ contacto, onClose }: { contacto: Contacto; onClose: () 
       <div className="mb-6">
         <h3 className="type-label text-[var(--color-text-muted)] mb-3">Registrar contacto de hoy</h3>
         <form onSubmit={registrarInteraccion} className="flex flex-col gap-2 items-start">
-          <select className={`${selectClass} w-full`} value={tipo} onChange={(e) => setTipo(e.target.value)}>
+          <select className={`${fieldInputClass} w-full`} value={tipo} onChange={(e) => setTipo(e.target.value)}>
             {Object.entries(TIPO_INTERACCION).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
             ))}

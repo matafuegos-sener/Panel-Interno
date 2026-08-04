@@ -3,7 +3,7 @@ import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const COLUMNAS =
-  "id, nombre, rubro, ciudad, direccion, telefono, whatsapp, website, red_social, rating, reviews, price_level, business_status, maps_url, matricula, fecha_inscripcion, oneroso, sanciones, tier, email, fuente, notas";
+  "id, nombre, rubro, ciudad, direccion, telefono, whatsapp, website, red_social, rating, reviews, price_level, business_status, maps_url, matricula, fecha_inscripcion, oneroso, sanciones, tier, email, fuente, categoria, notas, whatsapp_enviado, whatsapp_enviado_en, whatsapp_sin_wa, mail_enviado, mail_enviado_en";
 const TAMANO_PAGINA = 1000;
 
 export async function GET() {

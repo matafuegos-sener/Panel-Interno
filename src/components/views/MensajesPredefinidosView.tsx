@@ -20,7 +20,6 @@ export default function MensajesPredefinidosView({ canal }: Props) {
   const [editando, setEditando] = useState<MensajePredefinido | "nuevo" | null>(null);
 
   useEffect(() => {
-    setMensajes(null);
     fetch(`/api/admin/mensajes?canal=${canal}`)
       .then((r) => r.json())
       .then((data) => setMensajes(Array.isArray(data) ? data : []));
