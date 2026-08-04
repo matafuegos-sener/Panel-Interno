@@ -10,7 +10,7 @@ const TAMANO_TANDA_DEFAULT = 20;
 const TAMANO_TANDA_MAX = 25;
 
 export default function WhatsappView() {
-  const { unificados } = useContactosUnificados();
+  const { unificados, error } = useContactosUnificados();
   const [filtro, setFiltro] = useState<FiltroContactosState>(FILTRO_VACIO);
   const [stats, setStats] = useState<{ total: number; elegibles: number } | null>(null);
 
@@ -54,6 +54,12 @@ export default function WhatsappView() {
         <h1 className="text-xl font-bold text-[var(--color-brand-dark)]">WhatsApp</h1>
         <p className="text-sm text-[var(--color-text-muted)]">Elegí a qué contactos les llega, después armás la tanda</p>
       </div>
+
+      {error && (
+        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-6">
+          No se pudo cargar la base: {error}. Probablemente falta aplicar la migración en Supabase (ver pendientes.md).
+        </p>
+      )}
 
       <div className={`${panelCardClass} p-4 mb-6`}>
         <h3 className="type-label text-[var(--color-text-muted)] mb-3">Filtro de contactos</h3>

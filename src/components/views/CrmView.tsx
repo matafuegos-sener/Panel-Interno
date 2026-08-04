@@ -17,7 +17,7 @@ function fmtFecha(d: string): string {
 const WHATSAPP_LABEL: Record<string, string> = { SI: "Sí", NO: "No", VERIFICAR: "A verificar" };
 
 export default function CrmView() {
-  const { contactos, tracking, unificados } = useContactosUnificados();
+  const { contactos, tracking, unificados, error } = useContactosUnificados();
   const [filtro, setFiltro] = useState<FiltroContactosState>(FILTRO_VACIO);
   const [lote, setLote] = useState<ContactoUnificado[] | null>(null);
   const [seleccionado, setSeleccionado] = useState<ContactoUnificado | null>(null);
@@ -43,6 +43,12 @@ export default function CrmView() {
         <h1 className="text-xl font-bold text-[var(--color-brand-dark)]">CRM</h1>
         <p className="text-sm text-[var(--color-text-muted)]">Traé un lote por criterio y trabajalo — no navegues la base entera</p>
       </div>
+
+      {error && (
+        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-6">
+          No se pudo cargar la base: {error}. Probablemente falta aplicar la migración en Supabase (ver pendientes.md).
+        </p>
+      )}
 
       <div className={`${panelCardClass} p-4 mb-6`}>
         <FiltrosContactos rows={unificados ?? []} value={filtro} onChange={setFiltro} onFiltrar={traerLote} mostrarBusqueda />
