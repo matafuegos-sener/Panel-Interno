@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { LeadBase } from "@/data/leadsBase";
 import Modal from "@/components/Modal";
-import { panelCardClass, btnPrimaryClass } from "@/components/formStyles";
+import { panelCardClass, btnPrimaryClass, btnSecondaryClass } from "@/components/formStyles";
+
+const TAMANO_PAGINA = 200;
 
 function normalizarBusqueda(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -16,7 +18,8 @@ export default function BaseTrackingView() {
   const [tier, setTier] = useState("");
   const [fuente, setFuente] = useState("");
   const [busqueda, setBusqueda] = useState("");
-  const [lote, setLote] = useState<LeadBase[] | null>(null);
+  const [resultado, setResultado] = useState<LeadBase[] | null>(null);
+  const [pagina, setPagina] = useState(0);
   const [seleccionado, setSeleccionado] = useState<LeadBase | null>(null);
 
   useEffect(() => {
@@ -29,22 +32,26 @@ export default function BaseTrackingView() {
   const tiers = useMemo(() => uniqueSorted(todos ?? [], "tier"), [todos]);
   const fuentes = useMemo(() => uniqueSorted(todos ?? [], "fuente"), [todos]);
 
+  const lote = useMemo(() => {
+    if (!resultado) return null;
+    return resultado.slice(pagina * TAMANO_PAGINA, (pagina + 1) * TAMANO_PAGINA);
+  }, [resultado, pagina]);
+
   function traerLote() {
     if (!todos) return;
     const q = normalizarBusqueda(busqueda.trim());
-    const resultado = todos
-      .filter((r) => {
-        if (rubro && r.rubro !== rubro) return false;
-        if (tier && r.tier !== tier) return false;
-        if (fuente && r.fuente !== fuente) return false;
-        if (q) {
-          const nombre = normalizarBusqueda(r.nombre ?? "");
-          if (!nombre.includes(q)) return false;
-        }
-        return true;
-      })
-      .slice(0, 200);
-    setLote(resultado);
+    const filtrados = todos.filter((r) => {
+      if (rubro && r.rubro !== rubro) return false;
+      if (tier && r.tier !== tier) return false;
+      if (fuente && r.fuente !== fuente) return false;
+      if (q) {
+        const nombre = normalizarBusqueda(r.nombre ?? "");
+        if (!nombre.includes(q)) return false;
+      }
+      return true;
+    });
+    setResultado(filtrados);
+    setPagina(0);
   }
 
   return (
@@ -88,21 +95,43 @@ export default function BaseTrackingView() {
         </button>
       </div>
 
-      {lote === null && (
+      {resultado === null && (
         <p className="text-sm text-[var(--color-text-muted)] py-12 text-center border border-dashed border-[var(--color-border)] rounded-2xl">
           Elegí un criterio y cargá el lote para empezar a trabajar.
         </p>
       )}
 
-      {lote !== null && lote.length === 0 && (
+      {resultado !== null && resultado.length === 0 && (
         <p className="text-sm text-[var(--color-text-muted)] py-12 text-center border border-dashed border-[var(--color-border)] rounded-2xl">
           Ningún contacto coincide con ese criterio.
         </p>
       )}
 
-      {lote !== null && lote.length > 0 && (
+      {resultado !== null && lote !== null && resultado.length > 0 && (
         <>
-          <p className="type-label text-[var(--color-text-muted)] mb-3">{lote.length} contactos traídos — hacé click para abrir cada uno</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="type-label text-[var(--color-text-muted)]">
+              {resultado.length} contactos encontrados — mostrando {pagina * TAMANO_PAGINA + 1}–{pagina * TAMANO_PAGINA + lote.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPagina((p) => p - 1)}
+                disabled={pagina === 0}
+                className={`${btnSecondaryClass} ${pagina === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
+              >
+                ← Anterior
+              </button>
+              <button
+                type="button"
+                onClick={() => setPagina((p) => p + 1)}
+                disabled={(pagina + 1) * TAMANO_PAGINA >= resultado.length}
+                className={`${btnSecondaryClass} ${(pagina + 1) * TAMANO_PAGINA >= resultado.length ? "opacity-40 cursor-not-allowed" : ""}`}
+              >
+                Siguiente →
+              </button>
+            </div>
+          </div>
           <div className={`${panelCardClass} overflow-hidden`}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
