@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ContactoUnificado, FILTRO_VACIO, FiltroContactosState } from "@/data/crmUnificado";
 import { MensajePredefinido } from "@/data/mensajes";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
-import FiltrosContactos, { FILTRO_VACIO, FiltroContactosState, aplicaFiltro } from "@/components/FiltrosContactos";
+import FiltrosContactos from "@/components/FiltrosContactos";
 import { fieldLabelClass, fieldInputClass, btnPrimaryClass, panelCardClass } from "@/components/formStyles";
 
 const TAMANO_TANDA_DEFAULT = 20;
 const TAMANO_TANDA_MAX = 25;
 
 export default function WhatsappView() {
-  const { unificados, error } = useContactosUnificados();
+  const { opciones, error, buscarLote } = useContactosUnificados();
   const [filtro, setFiltro] = useState<FiltroContactosState>(FILTRO_VACIO);
-  const [stats, setStats] = useState<{ total: number; elegibles: number } | null>(null);
+  const [loteActual, setLoteActual] = useState<ContactoUnificado[] | null>(null);
+  const [cargandoFiltro, setCargandoFiltro] = useState(false);
 
   const [plantillas, setPlantillas] = useState<MensajePredefinido[] | null>(null);
   const [plantillaId, setPlantillaId] = useState("");
@@ -27,14 +29,20 @@ export default function WhatsappView() {
   const plantilla = plantillas?.find((m) => m.id === plantillaId) ?? null;
 
   function elegiblesActuales() {
-    if (!unificados) return [];
-    return unificados.filter((r) => aplicaFiltro(r, filtro) && r.telefono && !r.whatsappEnviado && !r.whatsappSinWa);
+    if (!loteActual) return [];
+    return loteActual.filter((r) => r.telefono && !r.whatsappEnviado && !r.whatsappSinWa);
   }
 
-  function aplicarFiltro() {
-    if (!unificados) return;
-    const total = unificados.filter((r) => aplicaFiltro(r, filtro)).length;
-    setStats({ total, elegibles: elegiblesActuales().length });
+  const stats = useMemo(() => {
+    if (!loteActual) return null;
+    return { total: loteActual.length, elegibles: elegiblesActuales().length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loteActual]);
+
+  async function aplicarFiltro() {
+    setCargandoFiltro(true);
+    setLoteActual(await buscarLote(filtro));
+    setCargandoFiltro(false);
   }
 
   function abrirTanda() {
@@ -63,14 +71,20 @@ export default function WhatsappView() {
 
       <div className={`${panelCardClass} p-4 mb-6`}>
         <h3 className="type-label text-[var(--color-text-muted)] mb-3">Filtro de contactos</h3>
-        <FiltrosContactos rows={unificados ?? []} value={filtro} onChange={setFiltro} onFiltrar={aplicarFiltro} />
-        {stats && (
+        <FiltrosContactos
+          opciones={opciones ?? { categorias: [], rubros: [], tiers: [] }}
+          value={filtro}
+          onChange={setFiltro}
+          onFiltrar={aplicarFiltro}
+        />
+        {cargandoFiltro && <p className="text-sm text-[var(--color-text-muted)] mt-3">Buscando…</p>}
+        {!cargandoFiltro && stats && (
           <p className="text-sm text-[var(--color-text-muted)] mt-3">
             <strong className="text-[var(--color-brand-dark)]">{stats.total}</strong> contacto{stats.total === 1 ? "" : "s"} coinciden con el filtro —{" "}
             <strong className="text-[var(--color-brand-dark)]">{stats.elegibles}</strong> disponibles para WhatsApp
           </p>
         )}
-        {!stats && <p className="text-sm text-[var(--color-text-muted)] mt-3">Elegí los filtros y tocá &quot;Filtrar&quot; para ver a cuántos contactos les llega.</p>}
+        {!cargandoFiltro && !stats && <p className="text-sm text-[var(--color-text-muted)] mt-3">Elegí los filtros y tocá &quot;Filtrar&quot; para ver a cuántos contactos les llega.</p>}
       </div>
 
       <div className={`${panelCardClass} p-4 sm:p-6 flex flex-col gap-5`}>

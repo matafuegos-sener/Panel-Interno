@@ -8,50 +8,49 @@ import { panelCardClass, btnPrimaryClass, btnSecondaryClass } from "@/components
 
 const TAMANO_PAGINA = 200;
 
-function normalizarBusqueda(s: string): string {
-  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+interface Opciones {
+  rubros: string[];
+  tiers: string[];
+  fuentes: string[];
+  total: number;
 }
 
 export default function BaseTrackingView() {
-  const [todos, setTodos] = useState<LeadBase[] | null>(null);
+  const [opciones, setOpciones] = useState<Opciones | null>(null);
   const [rubro, setRubro] = useState("");
   const [tier, setTier] = useState("");
   const [fuente, setFuente] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [resultado, setResultado] = useState<LeadBase[] | null>(null);
+  const [cargandoLote, setCargandoLote] = useState(false);
   const [pagina, setPagina] = useState(0);
   const [seleccionado, setSeleccionado] = useState<LeadBase | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/leads-base")
+    fetch("/api/admin/leads-base/opciones")
       .then((r) => r.json())
-      .then((data) => setTodos(Array.isArray(data) ? data.filter((r: LeadBase) => r.telefono || r.email) : []));
+      .then((data) => setOpciones(data?.rubros ? data : { rubros: [], tiers: [], fuentes: [], total: 0 }));
   }, []);
-
-  const rubros = useMemo(() => uniqueSorted(todos ?? [], "rubro"), [todos]);
-  const tiers = useMemo(() => uniqueSorted(todos ?? [], "tier"), [todos]);
-  const fuentes = useMemo(() => uniqueSorted(todos ?? [], "fuente"), [todos]);
 
   const lote = useMemo(() => {
     if (!resultado) return null;
     return resultado.slice(pagina * TAMANO_PAGINA, (pagina + 1) * TAMANO_PAGINA);
   }, [resultado, pagina]);
 
-  function traerLote() {
-    if (!todos) return;
-    const q = normalizarBusqueda(busqueda.trim());
-    const filtrados = todos.filter((r) => {
-      if (rubro && r.rubro !== rubro) return false;
-      if (tier && r.tier !== tier) return false;
-      if (fuente && r.fuente !== fuente) return false;
-      if (q) {
-        const nombre = normalizarBusqueda(r.nombre ?? "");
-        if (!nombre.includes(q)) return false;
-      }
-      return true;
-    });
+  async function traerLote() {
+    setCargandoLote(true);
+    const params = new URLSearchParams();
+    if (rubro) params.set("rubro", rubro);
+    if (tier) params.set("tier", tier);
+    if (fuente) params.set("fuente", fuente);
+    if (busqueda.trim()) params.set("busqueda", busqueda.trim());
+
+    const res = await fetch(`/api/admin/leads-base?${params.toString()}`);
+    const data = await res.json();
+    const filtrados = (Array.isArray(data) ? data : []).filter((r: LeadBase) => r.telefono || r.email);
     setResultado(filtrados);
     setPagina(0);
+    setCargandoLote(false);
   }
 
   return (
@@ -59,26 +58,26 @@ export default function BaseTrackingView() {
       <div className="mb-6">
         <h1 className="text-xl font-bold text-[var(--color-brand-dark)]">Base Tracking</h1>
         <p className="text-sm text-[var(--color-text-muted)]">
-          {todos ? `${todos.length} contactos con teléfono o email` : "Cargando…"} — traé un lote por criterio y trabajalo, no navegues la base entera
+          {opciones ? `${opciones.total} contactos con teléfono o email` : "Cargando…"} — traé un lote por criterio y trabajalo, no navegues la base entera
         </p>
       </div>
 
       <div className={`${panelCardClass} p-4 flex flex-wrap items-center gap-2 mb-6`}>
         <select className={selectClass} value={rubro} onChange={(e) => setRubro(e.target.value)}>
           <option value="">Rubro — todos</option>
-          {rubros.map((r) => (
+          {opciones?.rubros.map((r) => (
             <option key={r} value={r}>{r}</option>
           ))}
         </select>
         <select className={selectClass} value={tier} onChange={(e) => setTier(e.target.value)}>
           <option value="">Tier — todos</option>
-          {tiers.map((t) => (
+          {opciones?.tiers.map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
         <select className={selectClass} value={fuente} onChange={(e) => setFuente(e.target.value)}>
           <option value="">Fuente — todas</option>
-          {fuentes.map((f) => (
+          {opciones?.fuentes.map((f) => (
             <option key={f} value={f}>{f}</option>
           ))}
         </select>
@@ -90,24 +89,28 @@ export default function BaseTrackingView() {
           onChange={(e) => setBusqueda(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && traerLote()}
         />
-        <button type="button" onClick={traerLote} className={`${btnPrimaryClass} ml-auto`}>
-          Cargar
+        <button type="button" onClick={traerLote} disabled={cargandoLote} className={`${btnPrimaryClass} ml-auto`}>
+          {cargandoLote ? "Cargando…" : "Cargar"}
         </button>
       </div>
 
-      {resultado === null && (
+      {cargandoLote && (
+        <p className="text-sm text-[var(--color-text-muted)] py-12 text-center">Buscando contactos…</p>
+      )}
+
+      {!cargandoLote && resultado === null && (
         <p className="text-sm text-[var(--color-text-muted)] py-12 text-center border border-dashed border-[var(--color-border)] rounded-2xl">
           Elegí un criterio y cargá el lote para empezar a trabajar.
         </p>
       )}
 
-      {resultado !== null && resultado.length === 0 && (
+      {!cargandoLote && resultado !== null && resultado.length === 0 && (
         <p className="text-sm text-[var(--color-text-muted)] py-12 text-center border border-dashed border-[var(--color-border)] rounded-2xl">
           Ningún contacto coincide con ese criterio.
         </p>
       )}
 
-      {resultado !== null && lote !== null && resultado.length > 0 && (
+      {!cargandoLote && resultado !== null && lote !== null && resultado.length > 0 && (
         <>
           <div className="flex items-center justify-between mb-3">
             <p className="type-label text-[var(--color-text-muted)]">
@@ -185,10 +188,6 @@ export default function BaseTrackingView() {
 
 const selectClass =
   "px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-brand-gray)] bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-red)] focus:border-transparent";
-
-function uniqueSorted(rows: LeadBase[], key: "rubro" | "tier" | "fuente"): string[] {
-  return [...new Set(rows.map((r) => r[key]).filter((v): v is string => !!v))].sort();
-}
 
 const WHATSAPP_LABEL: Record<string, string> = { SI: "Sí", NO: "No", VERIFICAR: "A verificar" };
 

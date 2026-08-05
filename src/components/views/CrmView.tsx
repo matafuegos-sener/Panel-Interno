@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { Accion, Contacto, Interaccion, TIPO_INTERACCION } from "@/data/crm";
+import { Accion, Interaccion, TIPO_INTERACCION } from "@/data/crm";
 import { LeadBase } from "@/data/leadsBase";
-import { CATEGORIA_LABEL, ContactoUnificado } from "@/data/crmUnificado";
+import { CATEGORIA_LABEL, ContactoUnificado, FILTRO_VACIO, FiltroContactosState } from "@/data/crmUnificado";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
-import FiltrosContactos, { FILTRO_VACIO, FiltroContactosState, aplicaFiltro } from "@/components/FiltrosContactos";
+import FiltrosContactos from "@/components/FiltrosContactos";
 import Modal from "@/components/Modal";
 import { fieldLabelClass, fieldInputClass, btnPrimaryClass, btnSecondaryClass, panelCardClass } from "@/components/formStyles";
 
@@ -16,26 +16,23 @@ function fmtFecha(d: string): string {
 
 const WHATSAPP_LABEL: Record<string, string> = { SI: "Sí", NO: "No", VERIFICAR: "A verificar" };
 
+const CAP_LOTE = 100;
+
 export default function CrmView() {
-  const { contactos, tracking, unificados, error } = useContactosUnificados();
+  const { opciones, error, buscarLote } = useContactosUnificados();
   const [filtro, setFiltro] = useState<FiltroContactosState>(FILTRO_VACIO);
   const [lote, setLote] = useState<ContactoUnificado[] | null>(null);
+  const [totalLote, setTotalLote] = useState(0);
+  const [cargandoLote, setCargandoLote] = useState(false);
   const [seleccionado, setSeleccionado] = useState<ContactoUnificado | null>(null);
 
-  function traerLote() {
-    if (!unificados) return;
-    setLote(unificados.filter((r) => aplicaFiltro(r, filtro)).slice(0, 100));
+  async function traerLote() {
+    setCargandoLote(true);
+    const encontrados = await buscarLote(filtro);
+    setTotalLote(encontrados.length);
+    setLote(encontrados.slice(0, CAP_LOTE));
+    setCargandoLote(false);
   }
-
-  const rawContacto = useMemo(() => {
-    if (!seleccionado || seleccionado.tabla !== "contactos" || !contactos) return null;
-    return contactos.find((c) => c.id === seleccionado.id) ?? null;
-  }, [seleccionado, contactos]);
-
-  const rawTracking = useMemo(() => {
-    if (!seleccionado || seleccionado.tabla !== "leads_base" || !tracking) return null;
-    return tracking.find((t) => t.id === seleccionado.id) ?? null;
-  }, [seleccionado, tracking]);
 
   return (
     <div>
@@ -51,28 +48,34 @@ export default function CrmView() {
       )}
 
       <div className={`${panelCardClass} p-4 mb-6`}>
-        <FiltrosContactos rows={unificados ?? []} value={filtro} onChange={setFiltro} onFiltrar={traerLote} mostrarBusqueda />
+        <FiltrosContactos
+          opciones={opciones ?? { categorias: [], rubros: [], tiers: [] }}
+          value={filtro}
+          onChange={setFiltro}
+          onFiltrar={traerLote}
+          mostrarBusqueda
+        />
       </div>
 
-      {unificados === null && (
-        <p className="text-sm text-[var(--color-text-muted)] py-12 text-center">Cargando contactos…</p>
-      )}
+      {cargandoLote && <p className="text-sm text-[var(--color-text-muted)] py-12 text-center">Buscando contactos…</p>}
 
-      {unificados !== null && lote === null && (
+      {!cargandoLote && lote === null && (
         <p className="text-sm text-[var(--color-text-muted)] py-12 text-center border border-dashed border-[var(--color-border)] rounded-2xl">
           Elegí un criterio y cargá el lote para empezar a trabajar.
         </p>
       )}
 
-      {lote !== null && lote.length === 0 && (
+      {!cargandoLote && lote !== null && lote.length === 0 && (
         <p className="text-sm text-[var(--color-text-muted)] py-12 text-center border border-dashed border-[var(--color-border)] rounded-2xl">
           Ningún contacto coincide con ese criterio.
         </p>
       )}
 
-      {lote !== null && lote.length > 0 && (
+      {!cargandoLote && lote !== null && lote.length > 0 && (
         <>
-          <p className="type-label text-[var(--color-text-muted)] mb-3">{lote.length} contactos traídos — hacé click para abrir cada uno</p>
+          <p className="type-label text-[var(--color-text-muted)] mb-3">
+            {totalLote} contacto{totalLote === 1 ? "" : "s"} coinciden con el filtro — mostrando {lote.length}, hacé click para abrir cada uno
+          </p>
           <div className={`${panelCardClass} overflow-hidden`}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -107,40 +110,25 @@ export default function CrmView() {
       )}
 
       <Modal open={seleccionado !== null} onClose={() => setSeleccionado(null)} maxWidthClass="max-w-2xl">
-        {seleccionado && (
-          <ContactoPanel
-            unificado={seleccionado}
-            rawContacto={rawContacto}
-            rawTracking={rawTracking}
-            onClose={() => setSeleccionado(null)}
-          />
-        )}
+        {seleccionado && <ContactoPanel unificado={seleccionado} onClose={() => setSeleccionado(null)} />}
       </Modal>
     </div>
   );
 }
 
-function ContactoPanel({
-  unificado,
-  rawContacto,
-  rawTracking,
-  onClose,
-}: {
-  unificado: ContactoUnificado;
-  rawContacto: Contacto | null;
-  rawTracking: LeadBase | null;
-  onClose: () => void;
-}) {
+function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; onClose: () => void }) {
   const { id, tabla } = unificado;
+  const [rawTracking, setRawTracking] = useState<LeadBase | null>(null);
   const [interacciones, setInteracciones] = useState<Interaccion[] | null>(null);
   const [acciones, setAcciones] = useState<Accion[]>([]);
-  const [nombreContacto, setNombreContacto] = useState(rawContacto?.contacto ?? "");
+  const [nombreContacto, setNombreContacto] = useState("");
   const [guardandoContacto, setGuardandoContacto] = useState(false);
 
   const [tipo, setTipo] = useState(Object.keys(TIPO_INTERACCION)[0]);
   const [detalle, setDetalle] = useState("");
   const [accionesNuevas, setAccionesNuevas] = useState([{ descripcion: "", fecha_ejecucion: "" }]);
   const [registrando, setRegistrando] = useState(false);
+  const nombreContactoInicializado = useRef(false);
 
   function cargarHistorial() {
     fetch(`/api/admin/crm/contactos/${id}?tabla=${tabla}`)
@@ -148,6 +136,11 @@ function ContactoPanel({
       .then((data) => {
         setInteracciones(data.interacciones ?? []);
         setAcciones(data.acciones ?? []);
+        if (tabla === "leads_base") setRawTracking(data.fila ?? null);
+        if (!nombreContactoInicializado.current) {
+          setNombreContacto(tabla === "contactos" ? data.fila?.contacto ?? "" : "");
+          nombreContactoInicializado.current = true;
+        }
       });
   }
 

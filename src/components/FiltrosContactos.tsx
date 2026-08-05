@@ -1,41 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { CATEGORIA_LABEL, ContactoUnificado, uniqueSorted } from "@/data/crmUnificado";
+import { CATEGORIA_LABEL, FiltroContactosState } from "@/data/crmUnificado";
+import { OpcionesFiltro } from "@/lib/useContactosUnificados";
 
-export interface FiltroContactosState {
-  categoria: string;
-  rubros: string[];
-  tier: string;
-  activo: "" | "si" | "no";
-  busqueda: string;
-}
-
-export const FILTRO_VACIO: FiltroContactosState = { categoria: "", rubros: [], tier: "", activo: "", busqueda: "" };
-
-export function normalizarBusqueda(s: string): string {
-  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-}
-
-export function aplicaFiltro(row: ContactoUnificado, f: FiltroContactosState): boolean {
-  if (f.categoria && row.categoria !== f.categoria) return false;
-  if (f.rubros.length > 0 && !(row.rubro && f.rubros.includes(row.rubro))) return false;
-  if (f.tier && row.tier !== f.tier) return false;
-  if (f.activo === "si" && row.activo === false) return false;
-  if (f.activo === "no" && row.activo !== false) return false;
-  if (f.busqueda.trim()) {
-    const q = normalizarBusqueda(f.busqueda.trim());
-    if (!normalizarBusqueda(row.nombre).includes(q)) return false;
-  }
-  return true;
-}
+export { FILTRO_VACIO } from "@/data/crmUnificado";
+export type { FiltroContactosState } from "@/data/crmUnificado";
 
 const selectClass =
   "px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-brand-gray)] bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-red)] focus:border-transparent";
 
 interface Props {
-  rows: ContactoUnificado[];
+  opciones: OpcionesFiltro;
   value: FiltroContactosState;
   onChange: (value: FiltroContactosState) => void;
   onFiltrar: () => void;
@@ -48,11 +25,10 @@ interface Props {
 // contacto (ver POST interacciones, PATCH estado). Provincia queda fija en
 // CABA: hoy toda la base es de CABA, no hay dato de provincia distinto que
 // filtrar. El día que se sume operación en GBA, ahí sí pasa a ser un select
-// real.
-export default function FiltrosContactos({ rows, value, onChange, onFiltrar, mostrarBusqueda = false }: Props) {
-  const categorias = useMemo(() => uniqueSorted(rows, "categoria"), [rows]);
-  const rubros = useMemo(() => uniqueSorted(rows, "rubro"), [rows]);
-  const tiers = useMemo(() => uniqueSorted(rows, "tier"), [rows]);
+// real. Las opciones de cada <select> llegan ya armadas del servidor
+// (/api/admin/crm/opciones) -- este componente no baja filas para calcularlas.
+export default function FiltrosContactos({ opciones, value, onChange, onFiltrar, mostrarBusqueda = false }: Props) {
+  const { categorias, rubros, tiers } = opciones;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -77,7 +53,7 @@ export default function FiltrosContactos({ rows, value, onChange, onFiltrar, mos
       </select>
 
       <select className={selectClass} value={value.activo} onChange={(e) => onChange({ ...value, activo: e.target.value as FiltroContactosState["activo"] })}>
-        <option value="">Activo — todos</option>
+        <option value="">Todos</option>
         <option value="si">Solo activos</option>
         <option value="no">Solo inactivos</option>
       </select>

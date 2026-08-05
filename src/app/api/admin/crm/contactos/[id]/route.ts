@@ -22,7 +22,8 @@ export async function GET(
     return NextResponse.json({ error: "Falta parámetro tabla" }, { status: 400 });
   }
 
-  const [{ data: interacciones, error: errInt }, { data: acciones, error: errAcc }] = await Promise.all([
+  const [{ data: fila, error: errFila }, { data: interacciones, error: errInt }, { data: acciones, error: errAcc }] = await Promise.all([
+    supabaseAdmin.from(tabla).select("*").eq("id", id).single(),
     supabaseAdmin.from("interacciones").select("*").eq("contacto_id", id).eq("tabla_origen", tabla).order("fecha", { ascending: false }),
     supabaseAdmin
       .from("acciones")
@@ -33,11 +34,11 @@ export async function GET(
       .order("fecha_ejecucion", { ascending: true }),
   ]);
 
-  if (errInt || errAcc) {
-    return NextResponse.json({ error: (errInt ?? errAcc)!.message }, { status: 500 });
+  if (errFila || errInt || errAcc) {
+    return NextResponse.json({ error: (errFila ?? errInt ?? errAcc)!.message }, { status: 500 });
   }
   return NextResponse.json(
-    { interacciones: interacciones ?? [], acciones: acciones ?? [] },
+    { fila, interacciones: interacciones ?? [], acciones: acciones ?? [] },
     { headers: { "Cache-Control": "no-store" } }
   );
 }

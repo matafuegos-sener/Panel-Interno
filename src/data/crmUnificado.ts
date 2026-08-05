@@ -74,6 +74,12 @@ export function unificarDesdeTracking(l: LeadBase): ContactoUnificado {
   };
 }
 
-export function uniqueSorted(rows: ContactoUnificado[], key: "rubro" | "tier" | "categoria"): string[] {
-  return [...new Set(rows.map((r) => r[key]).filter((v): v is string => !!v))].sort();
+export interface FiltroContactosState {
+  categoria: string;
+  rubros: string[];
+  tier: string;
+  activo: "" | "si" | "no";
+  busqueda: string;
 }
+
+export const FILTRO_VACIO: FiltroContactosState = { categoria: "", rubros: [], tier: "", activo: "", busqueda: "" };

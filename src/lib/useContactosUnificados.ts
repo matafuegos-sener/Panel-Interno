@@ -1,55 +1,55 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Contacto } from "@/data/crm";
-import { LeadBase } from "@/data/leadsBase";
-import { ContactoUnificado, unificarDesdeContactos, unificarDesdeTracking } from "@/data/crmUnificado";
+import { useEffect, useState } from "react";
+import { ContactoUnificado, FiltroContactosState } from "@/data/crmUnificado";
+
+export interface OpcionesFiltro {
+  categorias: string[];
+  rubros: string[];
+  tiers: string[];
+}
 
 // Fuente de datos compartida por CRM, Envío de mails y WhatsApp: hay una
 // sola base de contactos, repartida en dos tablas de Supabase por motivos
-// técnicos (`contactos` y `leads_base` -- ver migración 0005). Se traen las
-// dos una sola vez y se combinan en `unificados`. Cada vista filtra sobre
-// eso; cuando necesita el detalle completo de una fila (ej. abrir el panel
-// de un contacto), busca por id en `contactos`/`tracking` según de qué
-// tabla vino.
-//
-// Si cualquiera de las dos rutas falla (típicamente porque falta aplicar
-// una migración en Supabase), se expone en `error` -- las vistas tienen que
-// mostrarlo, nunca tratar un error como "no hay datos".
+// técnicos (`contactos` y `leads_base` -- ver migración 0005). En vez de
+// bajar las dos tablas completas al montar (9.500+ filas, contradice "no
+// navegues la base entera"), acá solo se trae al montar la lista de
+// opciones para los <select> (liviana, /api/admin/crm/opciones) y se expone
+// `buscarLote` para que cada vista pida al servidor, ya filtrado, el lote
+// que necesita cuando el usuario aprieta "Filtrar".
 export function useContactosUnificados() {
-  const [contactos, setContactos] = useState<Contacto[] | null>(null);
-  const [tracking, setTracking] = useState<LeadBase[] | null>(null);
+  const [opciones, setOpciones] = useState<OpcionesFiltro | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/crm/contactos")
+    fetch("/api/admin/crm/opciones")
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) {
-          setContactos(data);
+        if (data?.rubros) {
+          setOpciones(data);
         } else {
-          setContactos([]);
-          setError(data?.error ? `contactos: ${data.error}` : "No se pudo cargar contactos");
-        }
-      });
-    fetch("/api/admin/leads-base")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setTracking(data);
-        } else {
-          setTracking([]);
-          setError(data?.error ? `leads-base: ${data.error}` : "No se pudo cargar leads-base");
+          setOpciones({ categorias: [], rubros: [], tiers: [] });
+          setError(data?.error ? `opciones: ${data.error}` : "No se pudieron cargar las opciones de filtro");
         }
       });
   }, []);
 
-  const unificados = useMemo<ContactoUnificado[] | null>(() => {
-    if (contactos === null || tracking === null) return null;
-    return [...contactos.map(unificarDesdeContactos), ...tracking.map(unificarDesdeTracking)];
-  }, [contactos, tracking]);
+  async function buscarLote(filtro: FiltroContactosState): Promise<ContactoUnificado[]> {
+    const params = new URLSearchParams();
+    if (filtro.categoria) params.set("categoria", filtro.categoria);
+    if (filtro.rubros.length > 0) params.set("rubros", filtro.rubros.join(","));
+    if (filtro.tier) params.set("tier", filtro.tier);
+    if (filtro.activo) params.set("activo", filtro.activo);
+    if (filtro.busqueda.trim()) params.set("busqueda", filtro.busqueda.trim());
 
-  const cargando = contactos === null || tracking === null;
+    const res = await fetch(`/api/admin/crm/lote?${params.toString()}`);
+    const data = await res.json();
+    if (!Array.isArray(data)) {
+      setError(data?.error ? `lote: ${data.error}` : "No se pudo traer el lote");
+      return [];
+    }
+    return data;
+  }
 
-  return { contactos, tracking, unificados, cargando, error };
+  return { opciones, error, buscarLote };
 }

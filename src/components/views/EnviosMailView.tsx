@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ContactoUnificado, FILTRO_VACIO, FiltroContactosState } from "@/data/crmUnificado";
 import { MensajePredefinido } from "@/data/mensajes";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
 import { reemplazarVariables } from "@/lib/plantillas";
-import FiltrosContactos, { FILTRO_VACIO, FiltroContactosState, aplicaFiltro } from "@/components/FiltrosContactos";
+import FiltrosContactos from "@/components/FiltrosContactos";
 import { fieldLabelClass, fieldInputClass, btnPrimaryClass, btnSecondaryClass, panelCardClass } from "@/components/formStyles";
 
 const FIRMA_TEXTO = "Matafuegos Sener — Insumos y servicios contra incendios\n+54 11 5318-0515 · matafuegossener.com.ar";
@@ -12,9 +13,10 @@ const TAMANO_TANDA_DEFAULT = 15;
 const TAMANO_TANDA_MAX = 25;
 
 export default function EnviosMailView() {
-  const { unificados, error } = useContactosUnificados();
+  const { opciones, error, buscarLote } = useContactosUnificados();
   const [filtro, setFiltro] = useState<FiltroContactosState>(FILTRO_VACIO);
-  const [stats, setStats] = useState<{ total: number; elegibles: number } | null>(null);
+  const [loteActual, setLoteActual] = useState<ContactoUnificado[] | null>(null);
+  const [cargandoFiltro, setCargandoFiltro] = useState(false);
 
   const [plantillas, setPlantillas] = useState<MensajePredefinido[] | null>(null);
   const [plantillaId, setPlantillaId] = useState("");
@@ -44,16 +46,36 @@ export default function EnviosMailView() {
     setCuerpo(mensaje.cuerpo);
   }
 
-  function elegiblesActuales() {
-    if (!unificados) return [];
-    return unificados.filter((r) => aplicaFiltro(r, filtro) && r.email && !r.mailEnviado);
+  function elegiblesDe(lote: ContactoUnificado[]) {
+    return lote.filter((r) => r.email && !r.mailEnviado);
   }
 
-  function aplicarFiltro() {
-    if (!unificados) return;
-    const total = unificados.filter((r) => aplicaFiltro(r, filtro)).length;
-    const elegibles = elegiblesActuales().length;
-    setStats({ total, elegibles });
+  function elegiblesActuales() {
+    return loteActual ? elegiblesDe(loteActual) : [];
+  }
+
+  const stats = useMemo(() => {
+    if (!loteActual) return null;
+    return { total: loteActual.length, elegibles: elegiblesDe(loteActual).length };
+  }, [loteActual]);
+
+  // Ritmo de warm-up de este dominio (ver CLAUDE.md global, sección de
+  // email): con un dominio sin historial no se manda todo junto. Estimación
+  // simple y honesta -- una tanda por día, del tamaño elegido acá -- no hay
+  // ningún cron todavía que escale solo, así que no se inventa un cálculo de
+  // escalado automático que el sistema no ejecuta.
+  const estimacion = useMemo(() => {
+    if (!stats || stats.elegibles === 0) return null;
+    const dias = Math.ceil(stats.elegibles / tamano);
+    const fin = new Date();
+    fin.setDate(fin.getDate() + (dias - 1));
+    return { dias, fin: fin.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }) };
+  }, [stats, tamano]);
+
+  async function aplicarFiltro() {
+    setCargandoFiltro(true);
+    setLoteActual(await buscarLote(filtro));
+    setCargandoFiltro(false);
   }
 
   async function enviarTest() {
@@ -99,7 +121,7 @@ export default function EnviosMailView() {
       return;
     }
     setResultado(data);
-    aplicarFiltro();
+    await aplicarFiltro();
   }
 
   const puedeEnviar = asunto.trim() && cuerpo.trim() && !enviando;
@@ -119,14 +141,26 @@ export default function EnviosMailView() {
 
       <div className={`${panelCardClass} p-4 mb-6`}>
         <h3 className="type-label text-[var(--color-text-muted)] mb-3">Filtro de contactos</h3>
-        <FiltrosContactos rows={unificados ?? []} value={filtro} onChange={setFiltro} onFiltrar={aplicarFiltro} />
-        {stats && (
+        <FiltrosContactos
+          opciones={opciones ?? { categorias: [], rubros: [], tiers: [] }}
+          value={filtro}
+          onChange={setFiltro}
+          onFiltrar={aplicarFiltro}
+        />
+        {cargandoFiltro && <p className="text-sm text-[var(--color-text-muted)] mt-3">Buscando…</p>}
+        {!cargandoFiltro && stats && (
           <p className="text-sm text-[var(--color-text-muted)] mt-3">
             <strong className="text-[var(--color-brand-dark)]">{stats.total}</strong> contacto{stats.total === 1 ? "" : "s"} coinciden con el filtro —{" "}
             <strong className="text-[var(--color-brand-dark)]">{stats.elegibles}</strong> tienen email y todavía no recibieron mail
+            {estimacion && (
+              <>
+                {" "}— al ritmo de {tamano}/día, terminás en <strong className="text-[var(--color-brand-dark)]">{estimacion.dias}</strong> día
+                {estimacion.dias === 1 ? "" : "s"} (fin estimado: <strong className="text-[var(--color-brand-dark)]">{estimacion.fin}</strong>)
+              </>
+            )}
           </p>
         )}
-        {!stats && <p className="text-sm text-[var(--color-text-muted)] mt-3">Elegí los filtros y tocá &quot;Filtrar&quot; para ver a cuántos contactos les llega.</p>}
+        {!cargandoFiltro && !stats && <p className="text-sm text-[var(--color-text-muted)] mt-3">Elegí los filtros y tocá &quot;Filtrar&quot; para ver a cuántos contactos les llega.</p>}
       </div>
 
       <div className={`${panelCardClass} p-4 sm:p-6 flex flex-col gap-5`}>
