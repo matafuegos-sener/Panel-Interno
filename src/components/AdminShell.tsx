@@ -31,8 +31,13 @@ export default function AdminShell() {
   const router = useRouter();
   const [activo, setActivo] = useState("crm");
   const tandas = useTandasEnvio();
-  const enCurso = (tandas ?? []).filter((t) => t.estado === "en_curso").length;
-  const itemEnviosActivos: NavItem = { id: "envios-activos", label: enCurso > 0 ? `${enCurso} en curso` : "Envíos activos" };
+  const enCursoMail = (tandas ?? []).filter((t) => t.tipo === "mail" && t.estado === "en_curso").length;
+  const enCursoWhatsapp = (tandas ?? []).filter((t) => t.tipo === "whatsapp" && t.estado === "en_curso").length;
+  const itemEnviosMail: NavItem = { id: "envios-activos-mail", label: enCursoMail > 0 ? `Mails — ${enCursoMail} en curso` : "Mails" };
+  const itemEnviosWhatsapp: NavItem = {
+    id: "envios-activos-whatsapp",
+    label: enCursoWhatsapp > 0 ? `WhatsApp — ${enCursoWhatsapp} en curso` : "WhatsApp",
+  };
 
   async function handleLogout() {
     await fetch("/api/admin/logout", { method: "POST" });
@@ -93,7 +98,8 @@ export default function AdminShell() {
           {renderItem(ITEM_BASE_TRACKING)}
 
           {renderGrupo("Envíos activos")}
-          {renderItem(itemEnviosActivos)}
+          {renderItem(itemEnviosMail)}
+          {renderItem(itemEnviosWhatsapp)}
         </ul>
         <div className="px-6 pt-4 mt-4 border-t border-[var(--color-border-subtle)]">
           <p className="type-label text-[var(--color-brand-gray)] opacity-70 mb-3">Settings</p>
@@ -116,7 +122,8 @@ export default function AdminShell() {
         {activo === "whatsapp" && <WhatsappView />}
         {activo === "mensajes-whatsapp" && <MensajesPredefinidosView canal="whatsapp" />}
         {activo === "base-tracking" && <BaseTrackingView />}
-        {activo === "envios-activos" && <EnviosActivosView />}
+        {activo === "envios-activos-mail" && <EnviosActivosView tipo="mail" />}
+        {activo === "envios-activos-whatsapp" && <EnviosActivosView tipo="whatsapp" />}
       </main>
     </div>
   );

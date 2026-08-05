@@ -15,7 +15,7 @@ function fmtHora(iso: string): string {
 // useTandasEnvio) y click-to-expand inline para ver el detalle item por item
 // sin salir de la pantalla -- se usa tal cual dentro de la Agenda (con
 // `limite`) y en la vista dedicada "Envíos activos" (sin límite).
-export default function EnviosActivosPanel({ limite }: { limite?: number }) {
+export default function EnviosActivosPanel({ tipo, limite }: { tipo?: TandaEnvio["tipo"]; limite?: number }) {
   const tandas = useTandasEnvio();
   const [expandidoId, setExpandidoId] = useState<string | null>(null);
   const [detalles, setDetalles] = useState<Record<string, DetalleTanda>>({});
@@ -34,7 +34,8 @@ export default function EnviosActivosPanel({ limite }: { limite?: number }) {
     return <p className="text-sm text-[var(--color-text-muted)]">Cargando…</p>;
   }
 
-  const ordenados = [...tandas].sort((a, b) => {
+  const filtrados = tipo ? tandas.filter((t) => t.tipo === tipo) : tandas;
+  const ordenados = [...filtrados].sort((a, b) => {
     if (a.estado !== b.estado) return a.estado === "en_curso" ? -1 : 1;
     return b.creadoEn.localeCompare(a.creadoEn);
   });
