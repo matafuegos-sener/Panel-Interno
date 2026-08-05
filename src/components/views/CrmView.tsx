@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { Accion, Interaccion, TIPO_INTERACCION } from "@/data/crm";
-import { CATEGORIA_LABEL, ContactoUnificado, FILTRO_VACIO, FiltroContactosState } from "@/data/crmUnificado";
+import { Accion, Contacto, Interaccion, TIPO_INTERACCION } from "@/data/crm";
+import { CATEGORIA_LABEL, ContactoUnificado, FILTRO_VACIO, FiltroContactosState, unificarDesdeContactos } from "@/data/crmUnificado";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
 import FiltrosContactos from "@/components/FiltrosContactos";
 import Modal from "@/components/Modal";
@@ -24,6 +24,7 @@ export default function CrmView() {
   const [totalLote, setTotalLote] = useState(0);
   const [cargandoLote, setCargandoLote] = useState(false);
   const [seleccionado, setSeleccionado] = useState<ContactoUnificado | null>(null);
+  const [nuevoAbierto, setNuevoAbierto] = useState(false);
 
   async function traerLote() {
     setCargandoLote(true);
@@ -35,9 +36,14 @@ export default function CrmView() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-[var(--color-brand-dark)]">CRM</h1>
-        <p className="text-sm text-[var(--color-text-muted)]">Traé un lote por criterio y trabajalo — no navegues la base entera</p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-[var(--color-brand-dark)]">CRM</h1>
+          <p className="text-sm text-[var(--color-text-muted)]">Traé un lote por criterio y trabajalo — no navegues la base entera</p>
+        </div>
+        <button type="button" onClick={() => setNuevoAbierto(true)} className={btnPrimaryClass}>
+          + Nuevo contacto
+        </button>
       </div>
 
       {error && (
@@ -111,6 +117,95 @@ export default function CrmView() {
       <Modal open={seleccionado !== null} onClose={() => setSeleccionado(null)} maxWidthClass="max-w-2xl">
         {seleccionado && <ContactoPanel unificado={seleccionado} onClose={() => setSeleccionado(null)} />}
       </Modal>
+
+      <Modal open={nuevoAbierto} onClose={() => setNuevoAbierto(false)}>
+        <PanelNuevoContacto
+          onCreado={(unificado) => {
+            setNuevoAbierto(false);
+            setSeleccionado(unificado);
+          }}
+          onCancelar={() => setNuevoAbierto(false)}
+        />
+      </Modal>
+    </div>
+  );
+}
+
+// Alta manual -- timbre del taller, llamada entrante, orgánico de la web:
+// contactos que no vienen de ninguna base scrapeada. Siempre va a
+// `contactos` (ver POST /api/admin/crm/contactos), nunca a `leads_base`.
+// Al crear, abre directo el ContactoPanel del contacto nuevo para que se
+// pueda registrar la interacción de una.
+function PanelNuevoContacto({
+  onCreado,
+  onCancelar,
+}: {
+  onCreado: (u: ContactoUnificado) => void;
+  onCancelar: () => void;
+}) {
+  const [nombre, setNombre] = useState("");
+  const [rubro, setRubro] = useState("");
+  const [telefono, setTelefono] = useState("");
+  const [email, setEmail] = useState("");
+  const [personaContacto, setPersonaContacto] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  async function guardar() {
+    if (!nombre.trim()) return;
+    setGuardando(true);
+    const res = await fetch("/api/admin/crm/contactos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre: nombre.trim(), rubro, telefono, email, personaContacto }),
+    });
+    const data = await res.json();
+    setGuardando(false);
+    if (!res.ok) {
+      window.alert(`Error: ${data.error}`);
+      return;
+    }
+    onCreado(unificarDesdeContactos(data as Contacto));
+  }
+
+  return (
+    <div className={`${panelCardClass} p-6 sm:p-8`}>
+      <h2 className="text-lg font-bold text-[var(--color-brand-dark)] mb-4">Nuevo contacto</h2>
+      <p className="text-sm text-[var(--color-text-muted)] mb-4">
+        Para alguien que no está en ninguna base — tocó el timbre, llamó, o llegó orgánico por la web.
+      </p>
+      <div className="flex flex-col gap-4">
+        <label>
+          <span className={fieldLabelClass}>Nombre / Empresa</span>
+          <input className={fieldInputClass} value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+        </label>
+        <label>
+          <span className={fieldLabelClass}>Rubro</span>
+          <input className={fieldInputClass} value={rubro} onChange={(e) => setRubro(e.target.value)} placeholder="Ej: consorcio, geriátrico…" />
+        </label>
+        <div className="flex flex-wrap gap-4">
+          <label className="flex-1 min-w-[180px]">
+            <span className={fieldLabelClass}>Teléfono</span>
+            <input className={fieldInputClass} value={telefono} onChange={(e) => setTelefono(e.target.value)} />
+          </label>
+          <label className="flex-1 min-w-[180px]">
+            <span className={fieldLabelClass}>Mail</span>
+            <input className={fieldInputClass} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+        </div>
+        <label>
+          <span className={fieldLabelClass}>Persona de contacto</span>
+          <input className={fieldInputClass} value={personaContacto} onChange={(e) => setPersonaContacto(e.target.value)} placeholder="Quién atiende" />
+        </label>
+
+        <div className="flex gap-3 pt-2 border-t border-[var(--color-border-subtle)]">
+          <button type="button" onClick={guardar} disabled={!nombre.trim() || guardando} className={btnPrimaryClass}>
+            {guardando ? "Guardando…" : "Guardar y abrir"}
+          </button>
+          <button type="button" onClick={onCancelar} className={btnSecondaryClass}>
+            Cancelar
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

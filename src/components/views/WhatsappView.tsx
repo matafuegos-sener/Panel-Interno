@@ -19,6 +19,7 @@ export default function WhatsappView() {
   const [plantillas, setPlantillas] = useState<MensajePredefinido[] | null>(null);
   const [plantillaId, setPlantillaId] = useState("");
   const [tamano, setTamano] = useState(TAMANO_TANDA_DEFAULT);
+  const [abriendo, setAbriendo] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/mensajes?canal=whatsapp")
@@ -45,7 +46,7 @@ export default function WhatsappView() {
     setCargandoFiltro(false);
   }
 
-  function abrirTanda() {
+  async function abrirTanda() {
     if (!plantilla) return;
     if (!loteActual) {
       window.alert("Todavía no filtraste contactos — elegí los filtros y tocá \"Filtrar\" antes de abrir la tanda.");
@@ -56,8 +57,19 @@ export default function WhatsappView() {
       window.alert("Ningún contacto elegible con ese filtro — ya están todos marcados como enviados o sin WhatsApp.");
       return;
     }
-    const items = tanda.map((c) => `${c.tabla}:${c.id}`).join(",");
-    window.open(`/whatsapp-tanda?plantilla=${encodeURIComponent(plantilla.id)}&items=${encodeURIComponent(items)}`, "_blank");
+    setAbriendo(true);
+    const res = await fetch("/api/admin/whatsapp/tanda", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plantillaId: plantilla.id, items: tanda.map((c) => ({ id: c.id, tabla: c.tabla })) }),
+    });
+    const data = await res.json();
+    setAbriendo(false);
+    if (!res.ok) {
+      window.alert(`Error: ${data.error}`);
+      return;
+    }
+    window.open(`/whatsapp-tanda?tandaId=${data.tandaId}`, "_blank");
   }
 
   return (
@@ -127,8 +139,8 @@ export default function WhatsappView() {
         )}
 
         <div>
-          <button type="button" onClick={abrirTanda} disabled={!plantilla || !loteActual} className={btnPrimaryClass}>
-            Abrir tanda en WhatsApp
+          <button type="button" onClick={abrirTanda} disabled={!plantilla || !loteActual || abriendo} className={btnPrimaryClass}>
+            {abriendo ? "Abriendo…" : "Abrir tanda en WhatsApp"}
           </button>
           <p className="text-sm text-[var(--color-text-muted)] mt-3">
             Se abre una pestaña nueva con los contactos de la tanda. Los que se marquen ahí como &quot;Enviado&quot; o &quot;Sin

@@ -21,51 +21,46 @@ function waLink(telefono: string, mensaje: string): string {
 }
 
 interface Props {
-  plantillaId: string;
-  itemsParam: string;
+  tandaId: string;
 }
 
-export default function WhatsappTandaView({ plantillaId, itemsParam }: Props) {
+export default function WhatsappTandaView({ tandaId }: Props) {
   const [plantilla, setPlantilla] = useState<MensajePredefinido | null>(null);
   const [filas, setFilas] = useState<FilaTanda[] | null>(null);
   const [error, setError] = useState("");
 
-  const items = itemsParam
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((s) => {
-      const [tabla, id] = s.split(":");
-      return { tabla: tabla as TablaOrigen, id };
-    });
-  const tandaInvalida = !plantillaId || items.length === 0;
-
   useEffect(() => {
-    if (tandaInvalida) return;
+    if (!tandaId) return;
 
-    Promise.all([
-      fetch(`/api/admin/mensajes/${plantillaId}`).then((r) => r.json()),
-      fetch("/api/admin/crm/tanda", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
-      }).then((r) => r.json()),
-    ]).then(([mensaje, tanda]) => {
-      if (mensaje?.error) {
-        setError(mensaje.error);
-        return;
-      }
-      setPlantilla(mensaje);
-      setFilas(Array.isArray(tanda) ? tanda : []);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plantillaId, itemsParam]);
+    fetch(`/api/admin/whatsapp/tanda/${tandaId}`)
+      .then((r) => r.json())
+      .then(async (tanda) => {
+        if (tanda?.error) {
+          setError(tanda.error);
+          return;
+        }
+        const [mensaje, filasEnriquecidas] = await Promise.all([
+          fetch(`/api/admin/mensajes/${tanda.plantillaId}`).then((r) => r.json()),
+          fetch("/api/admin/crm/tanda", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items: tanda.items }),
+          }).then((r) => r.json()),
+        ]);
+        if (mensaje?.error) {
+          setError(mensaje.error);
+          return;
+        }
+        setPlantilla(mensaje);
+        setFilas(Array.isArray(filasEnriquecidas) ? filasEnriquecidas : []);
+      });
+  }, [tandaId]);
 
   async function marcar(fila: FilaTanda, campo: "whatsapp_enviado" | "whatsapp_sin_wa", valor: boolean) {
     const res = await fetch(`/api/admin/crm/contactos/${fila.id}/estado`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tabla: fila.tabla, [campo]: valor }),
+      body: JSON.stringify({ tabla: fila.tabla, tandaId, [campo]: valor }),
     });
     if (!res.ok) {
       window.alert("No se pudo guardar.");
@@ -85,10 +80,10 @@ export default function WhatsappTandaView({ plantillaId, itemsParam }: Props) {
     }
   }
 
-  if (tandaInvalida) {
+  if (!tandaId) {
     return (
       <p className={`${panelCardClass} p-6 text-sm text-[var(--color-text-muted)]`}>
-        Tanda inválida o vacía — volvé al panel de WhatsApp y armá una tanda de nuevo.
+        Tanda inválida — volvé al panel de WhatsApp y armá una tanda de nuevo.
       </p>
     );
   }

@@ -5,13 +5,17 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import MensajesPredefinidosView from "@/components/views/MensajesPredefinidosView";
+import AgendaView from "@/components/views/AgendaView";
 import CrmView from "@/components/views/CrmView";
 import EnviosMailView from "@/components/views/EnviosMailView";
 import WhatsappView from "@/components/views/WhatsappView";
 import BaseTrackingView from "@/components/views/BaseTrackingView";
+import EnviosActivosView from "@/components/views/EnviosActivosView";
+import { useTandasEnvio } from "@/lib/useTandasEnvio";
 
 type NavItem = { id: string; label: string; sub?: boolean };
 
+const ITEM_AGENDA: NavItem = { id: "agenda", label: "Agenda" };
 const ITEM_CRM: NavItem = { id: "crm", label: "CRM" };
 const MODULO_MAIL: NavItem[] = [
   { id: "envios", label: "Envío de mails" },
@@ -26,6 +30,9 @@ const ITEM_BASE_TRACKING: NavItem = { id: "base-tracking", label: "Base Tracking
 export default function AdminShell() {
   const router = useRouter();
   const [activo, setActivo] = useState("crm");
+  const tandas = useTandasEnvio();
+  const enCurso = (tandas ?? []).filter((t) => t.estado === "en_curso").length;
+  const itemEnviosActivos: NavItem = { id: "envios-activos", label: enCurso > 0 ? `${enCurso} en curso` : "Envíos activos" };
 
   async function handleLogout() {
     await fetch("/api/admin/logout", { method: "POST" });
@@ -64,16 +71,6 @@ export default function AdminShell() {
     );
   }
 
-  function renderPlaceholder(label: string) {
-    return (
-      <li>
-        <div className="block px-6 py-2.5 text-sm border-l-2 border-transparent text-[var(--color-text-muted)] opacity-50 cursor-default select-none">
-          {label}
-        </div>
-      </li>
-    );
-  }
-
   return (
     <div className="flex min-h-screen">
       <nav className="w-[220px] flex-shrink-0 bg-[var(--color-surface)] border-r border-[var(--color-border)] py-6 flex flex-col">
@@ -83,7 +80,7 @@ export default function AdminShell() {
         </div>
         <ul className="flex-1">
           {renderGrupo("Trabajo", true)}
-          {renderPlaceholder("Agenda")}
+          {renderItem(ITEM_AGENDA)}
           {renderItem(ITEM_CRM)}
 
           {renderGrupo("Captación clientes")}
@@ -96,7 +93,7 @@ export default function AdminShell() {
           {renderItem(ITEM_BASE_TRACKING)}
 
           {renderGrupo("Envíos activos")}
-          {renderPlaceholder("Ningún envío activo")}
+          {renderItem(itemEnviosActivos)}
         </ul>
         <div className="px-6 pt-4 mt-4 border-t border-[var(--color-border-subtle)]">
           <p className="type-label text-[var(--color-brand-gray)] opacity-70 mb-3">Settings</p>
@@ -112,12 +109,14 @@ export default function AdminShell() {
       </nav>
 
       <main className="flex-1 min-w-0 px-8 py-10 overflow-x-auto">
+        {activo === "agenda" && <AgendaView />}
         {activo === "crm" && <CrmView />}
         {activo === "envios" && <EnviosMailView />}
         {activo === "mensajes-mail" && <MensajesPredefinidosView canal="mail" />}
         {activo === "whatsapp" && <WhatsappView />}
         {activo === "mensajes-whatsapp" && <MensajesPredefinidosView canal="whatsapp" />}
         {activo === "base-tracking" && <BaseTrackingView />}
+        {activo === "envios-activos" && <EnviosActivosView />}
       </main>
     </div>
   );
