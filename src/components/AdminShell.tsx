@@ -54,7 +54,11 @@ export default function AdminShell() {
 
   function renderGrupo(label: string, primero = false) {
     return (
-      <li className={`px-6 ${primero ? "pt-0" : "pt-4"} pb-1 type-label text-[var(--color-text-muted)]`}>
+      <li
+        className={`px-6 ${
+          primero ? "pt-0" : "pt-4 mt-3 border-t border-[var(--color-border-subtle)]"
+        } pb-1 type-label text-[var(--color-brand-gray)]`}
+      >
         {label}
       </li>
     );
@@ -95,7 +99,7 @@ export default function AdminShell() {
           {renderPlaceholder("Ningún envío activo")}
         </ul>
         <div className="px-6 pt-4 mt-4 border-t border-[var(--color-border-subtle)]">
-          <p className="type-label text-[var(--color-text-muted)] opacity-50 mb-3">Settings</p>
+          <p className="type-label text-[var(--color-brand-gray)] opacity-70 mb-3">Settings</p>
           <button
             type="button"
             onClick={handleLogout}
