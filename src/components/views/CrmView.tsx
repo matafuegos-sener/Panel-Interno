@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Accion, Interaccion, TIPO_INTERACCION } from "@/data/crm";
-import { LeadBase } from "@/data/leadsBase";
 import { CATEGORIA_LABEL, ContactoUnificado, FILTRO_VACIO, FiltroContactosState } from "@/data/crmUnificado";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
 import FiltrosContactos from "@/components/FiltrosContactos";
@@ -116,9 +115,24 @@ export default function CrmView() {
   );
 }
 
+// Campos "extra" uniformados entre contactos y leads_base (0006_uniformar_base.sql)
+// -- mismo nombre de campo en las dos tablas, exista o no el dato.
+interface CamposExtra {
+  ciudad: string | null;
+  direccion: string | null;
+  whatsapp: string | null;
+  website: string | null;
+  red_social: string | null;
+  rating: number | null;
+  reviews: number | null;
+  matricula: string | null;
+  fecha_inscripcion: string | null;
+  notas: string | null;
+}
+
 function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; onClose: () => void }) {
   const { id, tabla } = unificado;
-  const [rawTracking, setRawTracking] = useState<LeadBase | null>(null);
+  const [camposExtra, setCamposExtra] = useState<CamposExtra | null>(null);
   const [interacciones, setInteracciones] = useState<Interaccion[] | null>(null);
   const [acciones, setAcciones] = useState<Accion[]>([]);
   const [nombreContacto, setNombreContacto] = useState("");
@@ -136,9 +150,9 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
       .then((data) => {
         setInteracciones(data.interacciones ?? []);
         setAcciones(data.acciones ?? []);
-        if (tabla === "leads_base") setRawTracking(data.fila ?? null);
+        setCamposExtra(data.fila ?? null);
         if (!nombreContactoInicializado.current) {
-          setNombreContacto(tabla === "contactos" ? data.fila?.contacto ?? "" : "");
+          setNombreContacto(data.fila?.contacto ?? "");
           nombreContactoInicializado.current = true;
         }
       });
@@ -151,7 +165,7 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
 
   async function guardarContacto() {
     setGuardandoContacto(true);
-    await fetch(`/api/admin/crm/contactos/${id}?tabla=contactos`, {
+    await fetch(`/api/admin/crm/contactos/${id}?tabla=${tabla}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ contacto: nombreContacto.trim() || null }),
@@ -173,18 +187,18 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
     cargarHistorial();
   }
 
-  const camposTracking: [string, string | number | null][] = rawTracking
+  const camposTracking: [string, string | number | null][] = camposExtra
     ? [
-        ["Ciudad", rawTracking.ciudad],
-        ["Dirección", rawTracking.direccion],
-        ["¿Tiene WhatsApp?", rawTracking.whatsapp ? WHATSAPP_LABEL[rawTracking.whatsapp] ?? rawTracking.whatsapp : null],
-        ["Website", rawTracking.website],
-        ["Red social", rawTracking.red_social],
-        ["Rating", rawTracking.rating],
-        ["Reviews", rawTracking.reviews],
-        ["Matrícula", rawTracking.matricula],
-        ["Fecha inscripción", rawTracking.fecha_inscripcion],
-        ["Notas", rawTracking.notas],
+        ["Ciudad", camposExtra.ciudad],
+        ["Dirección", camposExtra.direccion],
+        ["¿Tiene WhatsApp?", camposExtra.whatsapp ? WHATSAPP_LABEL[camposExtra.whatsapp] ?? camposExtra.whatsapp : null],
+        ["Website", camposExtra.website],
+        ["Red social", camposExtra.red_social],
+        ["Rating", camposExtra.rating],
+        ["Reviews", camposExtra.reviews],
+        ["Matrícula", camposExtra.matricula],
+        ["Fecha inscripción", camposExtra.fecha_inscripcion],
+        ["Notas", camposExtra.notas],
       ]
     : [];
 
@@ -202,28 +216,20 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
         </button>
       </div>
 
-      {tabla === "contactos" ? (
-        <div className="flex flex-wrap items-end gap-4 pb-6 mb-6 border-b border-[var(--color-border-subtle)]">
-          <label className="min-w-[200px]">
-            <span className={fieldLabelClass}>Persona de contacto</span>
-            <input className={fieldInputClass} value={nombreContacto} onChange={(e) => setNombreContacto(e.target.value)} placeholder="Nombre de quien atiende" />
-          </label>
-          <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Tel</span>{unificado.telefono || "sin dato"}</p>
-          <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Mail</span>{unificado.email || "sin dato"}</p>
-          <button type="button" onClick={guardarContacto} disabled={guardandoContacto} className={btnSecondaryClass}>
-            Guardar persona de contacto
-          </button>
-        </div>
-      ) : (
+      <div className="flex flex-wrap items-end gap-4 pb-6 mb-6 border-b border-[var(--color-border-subtle)]">
+        <label className="min-w-[200px]">
+          <span className={fieldLabelClass}>Persona de contacto</span>
+          <input className={fieldInputClass} value={nombreContacto} onChange={(e) => setNombreContacto(e.target.value)} placeholder="Nombre de quien atiende" />
+        </label>
+        <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Tel</span>{unificado.telefono || "sin dato"}</p>
+        <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Mail</span>{unificado.email || "sin dato"}</p>
+        <button type="button" onClick={guardarContacto} disabled={guardandoContacto} className={btnSecondaryClass}>
+          Guardar persona de contacto
+        </button>
+      </div>
+
+      {camposTracking.some(([, valor]) => valor !== null && valor !== undefined && valor !== "") && (
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 pb-6 mb-6 border-b border-[var(--color-border-subtle)]">
-          <div>
-            <dt className="type-label text-[var(--color-text-muted)]">Teléfono</dt>
-            <dd className="text-sm text-[var(--color-brand-dark)]">{unificado.telefono || "sin dato"}</dd>
-          </div>
-          <div>
-            <dt className="type-label text-[var(--color-text-muted)]">Email</dt>
-            <dd className="text-sm text-[var(--color-brand-dark)]">{unificado.email || "sin dato"}</dd>
-          </div>
           {camposTracking
             .filter(([, valor]) => valor !== null && valor !== undefined && valor !== "")
             .map(([label, valor]) => (

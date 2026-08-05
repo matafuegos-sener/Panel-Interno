@@ -29,8 +29,8 @@ export interface ContactoUnificado {
   categoria: string; // frio / contactado_mail / contactado_whatsapp / ... -- esto sí es el filtro real
   telefono: string | null;
   email: string | null;
-  personaContacto: string | null; // solo existe en la tabla "contactos" (persona que atiende)
-  activo: boolean | null; // null = la tabla "leads_base" no trackea este concepto
+  personaContacto: string | null; // persona que atiende -- uniformado en las dos tablas (0006)
+  activo: boolean | null; // null = todavía no se cargó este dato para ese contacto
   whatsappEnviado: boolean;
   whatsappSinWa: boolean;
   mailEnviado: boolean;
@@ -66,8 +66,8 @@ export function unificarDesdeTracking(l: LeadBase): ContactoUnificado {
     categoria: l.categoria,
     telefono: l.telefono,
     email: l.email,
-    personaContacto: null,
-    activo: null,
+    personaContacto: l.contacto,
+    activo: l.activo,
     whatsappEnviado: l.whatsapp_enviado,
     whatsappSinWa: l.whatsapp_sin_wa,
     mailEnviado: l.mail_enviado,

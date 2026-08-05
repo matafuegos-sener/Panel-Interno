@@ -43,8 +43,9 @@ export async function GET(
   );
 }
 
-// Solo aplica a la tabla "contactos" -- "leads_base" no tiene columna
-// `contacto` (persona que atiende), es la tabla donde terminó la importación.
+// "contacto" (persona que atiende) ya existe en las dos tablas desde
+// 0006_uniformar_base.sql -- se puede editar sin importar de dónde vino el
+// contacto.
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -55,8 +56,8 @@ export async function PATCH(
 
   const { id } = await params;
   const tabla = leerTabla(req);
-  if (tabla !== "contactos") {
-    return NextResponse.json({ error: "Este dato solo se puede editar en contactos" }, { status: 400 });
+  if (!tabla) {
+    return NextResponse.json({ error: "Falta parámetro tabla" }, { status: 400 });
   }
 
   const body = await req.json().catch(() => null);
@@ -65,7 +66,7 @@ export async function PATCH(
   }
 
   const contacto = typeof body.contacto === "string" ? body.contacto.trim() || null : null;
-  const { error } = await supabaseAdmin.from("contactos").update({ contacto }).eq("id", id);
+  const { error } = await supabaseAdmin.from(tabla).update({ contacto }).eq("id", id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

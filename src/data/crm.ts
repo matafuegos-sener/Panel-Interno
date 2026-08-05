@@ -23,6 +23,23 @@ export interface Contacto {
   mail_enviado: boolean;
   mail_enviado_en: string | null;
   created_at: string;
+  // Uniformadas con leads_base en 0006_uniformar_base.sql -- mismo campo,
+  // exista o no el dato según de dónde vino el contacto.
+  ciudad: string | null;
+  direccion: string | null;
+  whatsapp: string | null;
+  website: string | null;
+  red_social: string | null;
+  rating: number | null;
+  reviews: number | null;
+  price_level: string | null;
+  business_status: string | null;
+  maps_url: string | null;
+  matricula: string | null;
+  fecha_inscripcion: string | null;
+  oneroso: string | null;
+  sanciones: string | null;
+  notas: string | null;
 }
 
 // Tipos de interacción que además mueven la categoría del contacto (ver

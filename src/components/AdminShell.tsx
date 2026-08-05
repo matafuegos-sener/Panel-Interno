@@ -18,7 +18,7 @@ const MODULO_MAIL: NavItem[] = [
   { id: "mensajes-mail", label: "Mensajes predefinidos", sub: true },
 ];
 const MODULO_WHATSAPP: NavItem[] = [
-  { id: "whatsapp", label: "WhatsApp" },
+  { id: "whatsapp", label: "Envío de WhatsApp" },
   { id: "mensajes-whatsapp", label: "Mensajes predefinidos", sub: true },
 ];
 const ITEM_BASE_TRACKING: NavItem = { id: "base-tracking", label: "Base Tracking" };
@@ -60,6 +60,16 @@ export default function AdminShell() {
     );
   }
 
+  function renderPlaceholder(label: string) {
+    return (
+      <li>
+        <div className="block px-6 py-2.5 text-sm border-l-2 border-transparent text-[var(--color-text-muted)] opacity-50 cursor-default select-none">
+          {label}
+        </div>
+      </li>
+    );
+  }
+
   return (
     <div className="flex min-h-screen">
       <nav className="w-[220px] flex-shrink-0 bg-[var(--color-surface)] border-r border-[var(--color-border)] py-6 flex flex-col">
@@ -69,20 +79,23 @@ export default function AdminShell() {
         </div>
         <ul className="flex-1">
           {renderGrupo("Trabajo", true)}
+          {renderPlaceholder("Agenda")}
           {renderItem(ITEM_CRM)}
 
           {renderGrupo("Captación clientes")}
-          <li className="bg-[var(--color-brand-red-subtle)]">
-            <ul>{MODULO_MAIL.map(renderItem)}</ul>
-          </li>
-          <li className="pt-2 mt-2 border-t border-[var(--color-border-subtle)]">
+          {MODULO_MAIL.map(renderItem)}
+          <li className="mt-2">
             <ul>{MODULO_WHATSAPP.map(renderItem)}</ul>
           </li>
 
           {renderGrupo("Bases")}
           {renderItem(ITEM_BASE_TRACKING)}
+
+          {renderGrupo("Envíos activos")}
+          {renderPlaceholder("Ningún envío activo")}
         </ul>
         <div className="px-6 pt-4 mt-4 border-t border-[var(--color-border-subtle)]">
+          <p className="type-label text-[var(--color-text-muted)] opacity-50 mb-3">Settings</p>
           <button
             type="button"
             onClick={handleLogout}

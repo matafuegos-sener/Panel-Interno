@@ -2,6 +2,11 @@ export interface LeadBase {
   id: string;
   nombre: string | null;
   rubro: string | null;
+  // Uniformadas con contactos en 0006_uniformar_base.sql -- mismo campo,
+  // exista o no el dato según de dónde vino el contacto.
+  contacto: string | null;
+  provincia: string | null;
+  activo: boolean | null;
   ciudad: string | null;
   direccion: string | null;
   telefono: string | null;
