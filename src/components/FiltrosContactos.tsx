@@ -18,6 +18,7 @@ interface Props {
   onChange: (value: FiltroContactosState) => void;
   onFiltrar: () => void;
   mostrarBusqueda?: boolean;
+  mostrarCategoria?: boolean;
 }
 
 // Bloque de filtros compartido por CRM, Envío de mails y WhatsApp. El filtro
@@ -28,17 +29,19 @@ interface Props {
 // filtrar. El día que se sume operación en GBA, ahí sí pasa a ser un select
 // real. Las opciones de cada <select> llegan ya armadas del servidor
 // (/api/admin/crm/opciones) -- este componente no baja filas para calcularlas.
-export default function FiltrosContactos({ opciones, value, onChange, onFiltrar, mostrarBusqueda = false }: Props) {
+export default function FiltrosContactos({ opciones, value, onChange, onFiltrar, mostrarBusqueda = false, mostrarCategoria = true }: Props) {
   const { categorias, rubros, tiers } = opciones;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <select className={selectClass} value={value.categoria} onChange={(e) => onChange({ ...value, categoria: e.target.value })}>
-        <option value="">Categoría — todas</option>
-        {categorias.map((c) => (
-          <option key={c} value={c}>{CATEGORIA_LABEL[c] ?? c}</option>
-        ))}
-      </select>
+      {mostrarCategoria && (
+        <select className={selectClass} value={value.categoria} onChange={(e) => onChange({ ...value, categoria: e.target.value })}>
+          <option value="">Categoría — todas</option>
+          {categorias.map((c) => (
+            <option key={c} value={c}>{CATEGORIA_LABEL[c] ?? c}</option>
+          ))}
+        </select>
+      )}
 
       <RubroMultiSelect opciones={rubros} seleccionados={value.rubros} onChange={(rubros) => onChange({ ...value, rubros })} />
 

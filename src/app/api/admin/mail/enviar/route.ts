@@ -26,7 +26,7 @@ async function traerFilas(tabla: TablaOrigen, ids: string[]): Promise<Map<string
   if (ids.length === 0) return mapa;
   const { data } = await supabaseAdmin
     .from(tabla)
-    .select(`id, mail_enviado, ${COLUMNA_MAIL[tabla]}, ${COLUMNAS_NOMBRE[tabla]}`)
+    .select(`id, mail_enviado, categoria, ${COLUMNA_MAIL[tabla]}, ${COLUMNAS_NOMBRE[tabla]}`)
     .in("id", ids);
   (data ?? []).forEach((fila) => {
     const filaTipada = fila as unknown as FilaContacto;
@@ -137,6 +137,14 @@ export async function POST(req: NextRequest) {
     if (fila.mail_enviado) {
       fallidos.push({ id: item.id, tabla, motivo: "Ya se le había enviado" });
       await marcarItem(item, "fallido", "Ya se le había enviado");
+      continue;
+    }
+    // Resguardo del lado del servidor -- nunca mandar un mail masivo a un
+    // contacto que ya se está trabajando, sin importar lo que haya filtrado
+    // el cliente (ver conversación 2026-08-05).
+    if (fila.categoria !== "frio") {
+      fallidos.push({ id: item.id, tabla, motivo: "Ya no es un contacto frío" });
+      await marcarItem(item, "fallido", "Ya no es un contacto frío");
       continue;
     }
 

@@ -46,8 +46,14 @@ export default function EnviosMailView() {
     setCuerpo(mensaje.cuerpo);
   }
 
+  // Nunca mandar una tanda masiva a un contacto que ya se está trabajando --
+  // "frío" es la única categoría elegible acá, sin excepción (ver
+  // conversación 2026-08-05: no puede llegarle un mensaje promocional a
+  // alguien como si fuera un contacto nuevo). El Categoría del filtro de
+  // arriba ni se muestra en esta vista por eso -- no tiene sentido ofrecer
+  // una combinación que siempre da cero resultados.
   function elegiblesDe(lote: ContactoUnificado[]) {
-    return lote.filter((r) => r.email && !r.mailEnviado);
+    return lote.filter((r) => r.email && !r.mailEnviado && r.categoria === "frio");
   }
 
   function elegiblesActuales() {
@@ -146,12 +152,17 @@ export default function EnviosMailView() {
           value={filtro}
           onChange={setFiltro}
           onFiltrar={aplicarFiltro}
+          mostrarCategoria={false}
         />
+        <p className="text-xs text-[var(--color-text-muted)] mt-2">
+          Esta tanda es solo para contactos fríos — a alguien que ya se está trabajando (llamada, reunión, mail previo) nunca le llega un
+          mensaje masivo acá.
+        </p>
         {cargandoFiltro && <p className="text-sm text-[var(--color-text-muted)] mt-3">Buscando…</p>}
         {!cargandoFiltro && stats && (
           <p className="text-sm text-[var(--color-text-muted)] mt-3">
             <strong className="text-[var(--color-brand-dark)]">{stats.total}</strong> contacto{stats.total === 1 ? "" : "s"} coinciden con el filtro —{" "}
-            <strong className="text-[var(--color-brand-dark)]">{stats.elegibles}</strong> tienen email y todavía no recibieron mail
+            <strong className="text-[var(--color-brand-dark)]">{stats.elegibles}</strong> son fríos, tienen email y todavía no recibieron mail
             {estimacion && (
               <>
                 {" "}— al ritmo de {tamano}/día, terminás en <strong className="text-[var(--color-brand-dark)]">{estimacion.dias}</strong> día

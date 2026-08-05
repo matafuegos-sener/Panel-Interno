@@ -8,11 +8,11 @@ interface ItemTanda {
   tabla: TablaOrigen;
 }
 
-type FilaNombre = Record<string, string | null>;
+type FilaContacto = Record<string, string | null>;
 
 const COLUMNAS_NOMBRE: Record<TablaOrigen, string> = { contactos: "razon_social, nombre_comercial", leads_base: "nombre" };
 
-function nombreDeFila(tabla: TablaOrigen, fila: FilaNombre): string {
+function nombreDeFila(tabla: TablaOrigen, fila: FilaContacto): string {
   if (tabla === "leads_base") return fila.nombre || "";
   return fila.razon_social || fila.nombre_comercial || "";
 }
@@ -37,40 +37,45 @@ export async function POST(req: NextRequest) {
   const idsTracking = items.filter((i) => i.tabla === "leads_base").map((i) => i.id);
   const [resContactos, resTracking] = await Promise.all([
     idsContactos.length
-      ? supabaseAdmin.from("contactos").select(`id, ${COLUMNAS_NOMBRE.contactos}`).in("id", idsContactos)
+      ? supabaseAdmin.from("contactos").select(`id, categoria, ${COLUMNAS_NOMBRE.contactos}`).in("id", idsContactos)
       : Promise.resolve({ data: [] }),
     idsTracking.length
-      ? supabaseAdmin.from("leads_base").select(`id, ${COLUMNAS_NOMBRE.leads_base}`).in("id", idsTracking)
+      ? supabaseAdmin.from("leads_base").select(`id, categoria, ${COLUMNAS_NOMBRE.leads_base}`).in("id", idsTracking)
       : Promise.resolve({ data: [] }),
   ]);
 
-  const mapaNombres = new Map<string, string>();
-  ((resContactos.data ?? []) as unknown as (FilaNombre & { id: string })[]).forEach((f) =>
-    mapaNombres.set(`contactos:${f.id}`, nombreDeFila("contactos", f))
-  );
-  ((resTracking.data ?? []) as unknown as (FilaNombre & { id: string })[]).forEach((f) =>
-    mapaNombres.set(`leads_base:${f.id}`, nombreDeFila("leads_base", f))
-  );
+  const mapaFilas = new Map<string, FilaContacto>();
+  ((resContactos.data ?? []) as unknown as (FilaContacto & { id: string })[]).forEach((f) => mapaFilas.set(`contactos:${f.id}`, f));
+  ((resTracking.data ?? []) as unknown as (FilaContacto & { id: string })[]).forEach((f) => mapaFilas.set(`leads_base:${f.id}`, f));
+
+  // Resguardo del lado del servidor -- nunca persistir en la tanda a un
+  // contacto que ya se está trabajando, sin importar lo que haya filtrado el
+  // cliente (ver conversación 2026-08-05: nada de mensajes masivos a alguien
+  // que ya dejó de ser un contacto frío).
+  const itemsFrios = items
+    .map((item) => ({ item, fila: mapaFilas.get(`${item.tabla}:${item.id}`) }))
+    .filter(({ item, fila }) => (item.tabla === "contactos" || item.tabla === "leads_base") && fila?.categoria === "frio");
+
+  if (itemsFrios.length === 0) {
+    return NextResponse.json({ error: "Ningún contacto frío en esta tanda -- ya se están trabajando o no son válidos" }, { status: 400 });
+  }
 
   const { data: tanda, error: errTanda } = await supabaseAdmin
     .from("tandas_envio")
-    .insert({ tipo: "whatsapp", total: items.length, plantilla_id: plantillaId })
+    .insert({ tipo: "whatsapp", total: itemsFrios.length, plantilla_id: plantillaId })
     .select()
     .single();
   if (errTanda || !tanda) {
     return NextResponse.json({ error: "No se pudo crear el registro de la tanda" }, { status: 500 });
   }
 
-  const itemsParaInsertar = items
-    .map((item, orden) => ({ item, orden }))
-    .filter(({ item }) => item.tabla === "contactos" || item.tabla === "leads_base")
-    .map(({ item, orden }) => ({
-      tanda_id: tanda.id,
-      contacto_id: item.id,
-      tabla_origen: item.tabla,
-      nombre: mapaNombres.get(`${item.tabla}:${item.id}`) || "(sin nombre)",
-      orden,
-    }));
+  const itemsParaInsertar = itemsFrios.map(({ item, fila }, i) => ({
+    tanda_id: tanda.id,
+    contacto_id: item.id,
+    tabla_origen: item.tabla,
+    nombre: (fila && nombreDeFila(item.tabla, fila)) || "(sin nombre)",
+    orden: i,
+  }));
   await supabaseAdmin.from("tandas_envio_items").insert(itemsParaInsertar);
 
   return NextResponse.json({ tandaId: tanda.id });

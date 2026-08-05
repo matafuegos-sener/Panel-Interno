@@ -29,9 +29,15 @@ export default function WhatsappView() {
 
   const plantilla = plantillas?.find((m) => m.id === plantillaId) ?? null;
 
+  // Nunca mandar una tanda masiva a un contacto que ya se está trabajando --
+  // "frío" es la única categoría elegible acá, sin excepción (ver
+  // conversación 2026-08-05: no puede llegarle un mensaje promocional a
+  // alguien como si fuera un contacto nuevo). El Categoría del filtro de
+  // arriba ni se muestra en esta vista por eso -- no tiene sentido ofrecer
+  // una combinación que siempre da cero resultados.
   function elegiblesActuales() {
     if (!loteActual) return [];
-    return loteActual.filter((r) => r.telefono && !r.whatsappEnviado && !r.whatsappSinWa);
+    return loteActual.filter((r) => r.telefono && !r.whatsappEnviado && !r.whatsappSinWa && r.categoria === "frio");
   }
 
   const stats = useMemo(() => {
@@ -92,12 +98,17 @@ export default function WhatsappView() {
           value={filtro}
           onChange={setFiltro}
           onFiltrar={aplicarFiltro}
+          mostrarCategoria={false}
         />
+        <p className="text-xs text-[var(--color-text-muted)] mt-2">
+          Esta tanda es solo para contactos fríos — a alguien que ya se está trabajando (llamada, reunión, mail previo) nunca le llega un
+          mensaje masivo acá.
+        </p>
         {cargandoFiltro && <p className="text-sm text-[var(--color-text-muted)] mt-3">Buscando…</p>}
         {!cargandoFiltro && stats && (
           <p className="text-sm text-[var(--color-text-muted)] mt-3">
             <strong className="text-[var(--color-brand-dark)]">{stats.total}</strong> contacto{stats.total === 1 ? "" : "s"} coinciden con el filtro —{" "}
-            <strong className="text-[var(--color-brand-dark)]">{stats.elegibles}</strong> disponibles para WhatsApp
+            <strong className="text-[var(--color-brand-dark)]">{stats.elegibles}</strong> fríos y disponibles para WhatsApp
           </p>
         )}
         {!cargandoFiltro && !stats && <p className="text-sm text-[var(--color-text-muted)] mt-3">Elegí los filtros y tocá &quot;Filtrar&quot; para ver a cuántos contactos les llega.</p>}
