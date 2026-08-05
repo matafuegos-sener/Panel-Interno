@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { CATEGORIA_LABEL, FiltroContactosState } from "@/data/crmUnificado";
 import { OpcionesFiltro } from "@/lib/useContactosUnificados";
+import { btnPrimaryClass } from "@/components/formStyles";
 
 export { FILTRO_VACIO } from "@/data/crmUnificado";
 export type { FiltroContactosState } from "@/data/crmUnificado";
@@ -69,7 +70,7 @@ export default function FiltrosContactos({ opciones, value, onChange, onFiltrar,
         />
       )}
 
-      <button type="button" onClick={onFiltrar} className={`${selectClass} bg-[var(--color-brand-dark)] text-white border-transparent hover:bg-black font-medium ml-auto`}>
+      <button type="button" onClick={onFiltrar} className={`${btnPrimaryClass} ml-auto shrink-0`}>
         Filtrar
       </button>
     </div>
