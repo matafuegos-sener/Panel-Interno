@@ -47,6 +47,10 @@ export default function WhatsappView() {
 
   function abrirTanda() {
     if (!plantilla) return;
+    if (!loteActual) {
+      window.alert("Todavía no filtraste contactos — elegí los filtros y tocá \"Filtrar\" antes de abrir la tanda.");
+      return;
+    }
     const tanda = elegiblesActuales().slice(0, tamano);
     if (tanda.length === 0) {
       window.alert("Ningún contacto elegible con ese filtro — ya están todos marcados como enviados o sin WhatsApp.");
@@ -123,7 +127,7 @@ export default function WhatsappView() {
         )}
 
         <div>
-          <button type="button" onClick={abrirTanda} disabled={!plantilla} className={btnPrimaryClass}>
+          <button type="button" onClick={abrirTanda} disabled={!plantilla || !loteActual} className={btnPrimaryClass}>
             Abrir tanda en WhatsApp
           </button>
           <p className="text-sm text-[var(--color-text-muted)] mt-3">
