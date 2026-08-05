@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { TablaOrigen } from "@/data/crm";
 import { MensajePredefinido } from "@/data/mensajes";
+import { reemplazarVariables } from "@/lib/plantillas";
 import { panelCardClass, btnPrimaryClass } from "@/components/formStyles";
 
 interface FilaTanda {
@@ -75,9 +76,10 @@ export default function WhatsappTandaView({ plantillaId, itemsParam }: Props) {
 
   async function copiarYAbrir(fila: FilaTanda) {
     if (!fila.telefono || !plantilla) return;
-    window.open(waLink(fila.telefono, plantilla.cuerpo), "_blank");
+    const mensaje = reemplazarVariables(plantilla.cuerpo, fila.nombre);
+    window.open(waLink(fila.telefono, mensaje), "_blank");
     try {
-      await navigator.clipboard.writeText(plantilla.cuerpo);
+      await navigator.clipboard.writeText(mensaje);
     } catch {
       window.alert("Se abrió WhatsApp, pero no se pudo copiar el mensaje automáticamente — pegalo a mano.");
     }
@@ -137,7 +139,7 @@ export default function WhatsappTandaView({ plantillaId, itemsParam }: Props) {
                 </label>
               </div>
             </div>
-            <p className="text-sm whitespace-pre-line text-[var(--color-text-muted)] mb-3">{plantilla.cuerpo}</p>
+            <p className="text-sm whitespace-pre-line text-[var(--color-text-muted)] mb-3">{reemplazarVariables(plantilla.cuerpo, f.nombre)}</p>
             <button type="button" onClick={() => copiarYAbrir(f)} disabled={!f.telefono} className={btnPrimaryClass}>
               Copiar mensaje y abrir WhatsApp
             </button>

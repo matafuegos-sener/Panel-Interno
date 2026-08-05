@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { enviarMail } from "@/lib/resend";
+import { reemplazarVariables } from "@/lib/plantillas";
 import { TablaOrigen } from "@/data/crm";
 
 interface ItemTanda {
@@ -10,7 +11,13 @@ interface ItemTanda {
 }
 
 const COLUMNA_MAIL: Record<TablaOrigen, string> = { contactos: "mail_1", leads_base: "email" };
+const COLUMNAS_NOMBRE: Record<TablaOrigen, string> = { contactos: "razon_social, nombre_comercial", leads_base: "nombre" };
 const MAX_TANDA = 25;
+
+function nombreDeFila(tabla: TablaOrigen, fila: Record<string, string | null>): string {
+  if (tabla === "leads_base") return fila.nombre || "";
+  return fila.razon_social || fila.nombre_comercial || "";
+}
 
 // Envía uno por uno (nunca CC/BCC, ver reglas de email del CLAUDE.md
 // global) y marca mail_enviado=true en la tabla de origen de cada contacto
@@ -48,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     const { data: fila, error: errFila } = await supabaseAdmin
       .from(tabla)
-      .select(`id, mail_enviado, ${COLUMNA_MAIL[tabla]}`)
+      .select(`id, mail_enviado, ${COLUMNA_MAIL[tabla]}, ${COLUMNAS_NOMBRE[tabla]}`)
       .eq("id", item.id)
       .single();
 
@@ -56,7 +63,8 @@ export async function POST(req: NextRequest) {
       fallidos.push({ id: item.id, tabla, motivo: "No se encontró el contacto" });
       continue;
     }
-    const email = (fila as unknown as Record<string, string | null>)[COLUMNA_MAIL[tabla]];
+    const filaDatos = fila as unknown as Record<string, string | null>;
+    const email = filaDatos[COLUMNA_MAIL[tabla]];
     if (!email) {
       fallidos.push({ id: item.id, tabla, motivo: "Sin email" });
       continue;
@@ -66,7 +74,10 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    const resultado = await enviarMail({ to: email, subject: body.asunto.trim(), text: body.cuerpo });
+    const nombre = nombreDeFila(tabla, filaDatos);
+    const asunto = reemplazarVariables(body.asunto.trim(), nombre);
+    const cuerpo = reemplazarVariables(body.cuerpo, nombre);
+    const resultado = await enviarMail({ to: email, subject: asunto, text: cuerpo });
     if (!resultado.ok) {
       fallidos.push({ id: item.id, tabla, motivo: resultado.error || "Resend rechazó el envío" });
       continue;

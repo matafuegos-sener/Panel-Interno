@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { MensajePredefinido } from "@/data/mensajes";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
+import { reemplazarVariables } from "@/lib/plantillas";
 import FiltrosContactos, { FILTRO_VACIO, FiltroContactosState, aplicaFiltro } from "@/components/FiltrosContactos";
 import { fieldLabelClass, fieldInputClass, btnPrimaryClass, btnSecondaryClass, panelCardClass } from "@/components/formStyles";
 
@@ -22,6 +23,7 @@ export default function EnviosMailView() {
   const [tamano, setTamano] = useState(TAMANO_TANDA_DEFAULT);
 
   const [testMail, setTestMail] = useState(() => (typeof window !== "undefined" ? window.localStorage.getItem("sener_test_mail") ?? "" : ""));
+  const [testNombre, setTestNombre] = useState(() => (typeof window !== "undefined" ? window.localStorage.getItem("sener_test_nombre") ?? "" : ""));
   const [enviandoTest, setEnviandoTest] = useState(false);
   const [mensajeTest, setMensajeTest] = useState("");
 
@@ -58,10 +60,15 @@ export default function EnviosMailView() {
     if (!testMail.trim()) return;
     setEnviandoTest(true);
     setMensajeTest("");
+    const nombre = testNombre.trim();
     const res = await fetch("/api/admin/mail/test", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ destinatario: testMail.trim(), asunto, cuerpo: `${cuerpo}\n\n${FIRMA_TEXTO}` }),
+      body: JSON.stringify({
+        destinatario: testMail.trim(),
+        asunto: nombre ? reemplazarVariables(asunto, nombre) : asunto,
+        cuerpo: `${nombre ? reemplazarVariables(cuerpo, nombre) : cuerpo}\n\n${FIRMA_TEXTO}`,
+      }),
     });
     const data = await res.json();
     setMensajeTest(res.ok ? "Mail de test enviado." : `Error: ${data.error}`);
@@ -150,17 +157,33 @@ export default function EnviosMailView() {
           <p className="text-sm whitespace-pre-line text-[var(--color-brand-dark)]">{FIRMA_TEXTO}</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[var(--color-border-subtle)]">
-          <input
-            className={`${fieldInputClass} max-w-xs`}
-            type="email"
-            placeholder="tu-mail@ejemplo.com"
-            value={testMail}
-            onChange={(e) => {
-              setTestMail(e.target.value);
-              window.localStorage.setItem("sener_test_mail", e.target.value.trim());
-            }}
-          />
+        <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-[var(--color-border-subtle)]">
+          <label className="max-w-xs">
+            <span className={fieldLabelClass}>Tu mail (adónde llega la prueba)</span>
+            <input
+              className={fieldInputClass}
+              type="email"
+              placeholder="tu-mail@ejemplo.com"
+              value={testMail}
+              onChange={(e) => {
+                setTestMail(e.target.value);
+                window.localStorage.setItem("sener_test_mail", e.target.value.trim());
+              }}
+            />
+          </label>
+          <label className="max-w-xs">
+            <span className={fieldLabelClass}>Nombre para reemplazar [EMPRESA]</span>
+            <input
+              className={fieldInputClass}
+              type="text"
+              placeholder="Consorcio Belgrano, o Juan Pérez…"
+              value={testNombre}
+              onChange={(e) => {
+                setTestNombre(e.target.value);
+                window.localStorage.setItem("sener_test_nombre", e.target.value);
+              }}
+            />
+          </label>
           <button type="button" onClick={enviarTest} disabled={!testMail.trim() || !puedeEnviar || enviandoTest} className={btnSecondaryClass}>
             {enviandoTest ? "Enviando…" : "Enviar mail de test"}
           </button>
