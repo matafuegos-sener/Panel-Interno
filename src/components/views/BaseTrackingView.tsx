@@ -11,7 +11,6 @@ const TAMANO_PAGINA = 200;
 interface Opciones {
   rubros: string[];
   tiers: string[];
-  fuentes: string[];
   total: number;
 }
 
@@ -19,7 +18,7 @@ export default function BaseTrackingView() {
   const [opciones, setOpciones] = useState<Opciones | null>(null);
   const [rubro, setRubro] = useState("");
   const [tier, setTier] = useState("");
-  const [fuente, setFuente] = useState("");
+  const [medio, setMedio] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [resultado, setResultado] = useState<LeadBase[] | null>(null);
   const [cargandoLote, setCargandoLote] = useState(false);
@@ -29,7 +28,7 @@ export default function BaseTrackingView() {
   useEffect(() => {
     fetch("/api/admin/leads-base/opciones")
       .then((r) => r.json())
-      .then((data) => setOpciones(data?.rubros ? data : { rubros: [], tiers: [], fuentes: [], total: 0 }));
+      .then((data) => setOpciones(data?.rubros ? data : { rubros: [], tiers: [], total: 0 }));
   }, []);
 
   const lote = useMemo(() => {
@@ -42,7 +41,7 @@ export default function BaseTrackingView() {
     const params = new URLSearchParams();
     if (rubro) params.set("rubro", rubro);
     if (tier) params.set("tier", tier);
-    if (fuente) params.set("fuente", fuente);
+    if (medio) params.set("medio", medio);
     if (busqueda.trim()) params.set("busqueda", busqueda.trim());
 
     const res = await fetch(`/api/admin/leads-base?${params.toString()}`);
@@ -75,11 +74,10 @@ export default function BaseTrackingView() {
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
-        <select className={selectClass} value={fuente} onChange={(e) => setFuente(e.target.value)}>
-          <option value="">Fuente — todas</option>
-          {opciones?.fuentes.map((f) => (
-            <option key={f} value={f}>{f}</option>
-          ))}
+        <select className={selectClass} value={medio} onChange={(e) => setMedio(e.target.value)}>
+          <option value="">Medio de contacto — todos</option>
+          <option value="telefono">Teléfono</option>
+          <option value="email">Email</option>
         </select>
         <input
           className={`${selectClass} flex-1 min-w-[160px]`}
