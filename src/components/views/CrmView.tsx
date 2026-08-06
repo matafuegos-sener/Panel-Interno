@@ -284,11 +284,14 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
   const [nombreContacto, setNombreContacto] = useState("");
   const [guardandoContacto, setGuardandoContacto] = useState(false);
 
+  const [mostrarInfo, setMostrarInfo] = useState(false);
+
   const [tipo, setTipo] = useState(Object.keys(TIPO_INTERACCION)[0]);
   const [detalle, setDetalle] = useState("");
-  const [accionesNuevas, setAccionesNuevas] = useState([{ descripcion: "", fecha_ejecucion: "" }]);
+  const [accionesFuturas, setAccionesFuturas] = useState([{ accion: "", texto: "", fecha_ejecucion: "" }]);
   const [registrando, setRegistrando] = useState(false);
   const nombreContactoInicializado = useRef(false);
+  const hoyLabel = new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
   function cargarHistorial() {
     fetch(`/api/admin/crm/contactos/${id}?tabla=${tabla}`)
@@ -322,13 +325,22 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
   async function registrarInteraccion(e: React.FormEvent) {
     e.preventDefault();
     setRegistrando(true);
+    // `acciones` en la tabla solo tiene una descripción de texto -- acá se
+    // arman a partir de los dos campos que se ven en pantalla (acción corta +
+    // detalle opcional) para no necesitar una columna nueva.
+    const acciones = accionesFuturas
+      .filter((a) => a.accion.trim() && a.fecha_ejecucion)
+      .map((a) => ({
+        descripcion: a.texto.trim() ? `${a.accion.trim()} — ${a.texto.trim()}` : a.accion.trim(),
+        fecha_ejecucion: a.fecha_ejecucion,
+      }));
     await fetch(`/api/admin/crm/contactos/${id}/interacciones`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tabla, tipo, detalle: detalle.trim(), acciones: accionesNuevas }),
+      body: JSON.stringify({ tabla, tipo, detalle: detalle.trim(), acciones }),
     });
     setDetalle("");
-    setAccionesNuevas([{ descripcion: "", fecha_ejecucion: "" }]);
+    setAccionesFuturas([{ accion: "", texto: "", fecha_ejecucion: "" }]);
     setRegistrando(false);
     cargarHistorial();
   }
@@ -350,9 +362,20 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
 
   return (
     <div className={`${panelCardClass} p-6 sm:p-8`}>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-2">
         <div>
-          <h2 className="text-lg font-bold text-[var(--color-brand-dark)]">{unificado.nombre}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-[var(--color-brand-dark)]">{unificado.nombre}</h2>
+            {camposTracking.some(([, valor]) => valor !== null && valor !== undefined && valor !== "") && (
+              <button
+                type="button"
+                onClick={() => setMostrarInfo((v) => !v)}
+                className="text-xs font-medium text-[var(--color-brand-red)] hover:underline"
+              >
+                {mostrarInfo ? "− Info" : "+ Info"}
+              </button>
+            )}
+          </div>
           <div className="flex flex-wrap gap-1.5 mt-1">
             <span className="inline-block px-1.5 py-0.5 rounded text-xs border border-[var(--color-border)] text-[var(--color-text-muted)]">
               {CATEGORIA_LABEL[unificado.categoria] ?? unificado.categoria}
@@ -371,20 +394,8 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
         </button>
       </div>
 
-      <div className="flex flex-wrap items-end gap-4 pb-6 mb-6 border-b border-[var(--color-border-subtle)]">
-        <label className="min-w-[200px]">
-          <span className={fieldLabelClass}>Persona de contacto</span>
-          <input className={fieldInputClass} value={nombreContacto} onChange={(e) => setNombreContacto(e.target.value)} placeholder="Nombre de quien atiende" />
-        </label>
-        <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Tel</span>{unificado.telefono || "sin dato"}</p>
-        <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Mail</span>{unificado.email || "sin dato"}</p>
-        <button type="button" onClick={guardarContacto} disabled={guardandoContacto} className={btnSecondaryClass}>
-          Guardar persona de contacto
-        </button>
-      </div>
-
-      {camposTracking.some(([, valor]) => valor !== null && valor !== undefined && valor !== "") && (
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 pb-6 mb-6 border-b border-[var(--color-border-subtle)]">
+      {mostrarInfo && (
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mb-6 pb-6 border-b border-[var(--color-border-subtle)]">
           {camposTracking
             .filter(([, valor]) => valor !== null && valor !== undefined && valor !== "")
             .map(([label, valor]) => (
@@ -404,6 +415,18 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
         </dl>
       )}
 
+      <div className="flex flex-wrap items-end gap-4 pb-6 mb-6 border-b border-[var(--color-border-subtle)]">
+        <label className="min-w-[200px]">
+          <span className={fieldLabelClass}>Persona de contacto</span>
+          <input className={fieldInputClass} value={nombreContacto} onChange={(e) => setNombreContacto(e.target.value)} placeholder="Nombre de quien atiende" />
+        </label>
+        <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Tel</span>{unificado.telefono || "sin dato"}</p>
+        <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Mail</span>{unificado.email || "sin dato"}</p>
+        <button type="button" onClick={guardarContacto} disabled={guardandoContacto} className={btnSecondaryClass}>
+          Guardar persona de contacto
+        </button>
+      </div>
+
       {acciones.length > 0 && (
         <div className="p-4 rounded-lg bg-[var(--color-brand-red-subtle)] mb-6">
           <h3 className="type-label text-[var(--color-text-muted)] mb-2">Pendiente con este contacto</h3>
@@ -415,50 +438,68 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
         </div>
       )}
 
-      <div className="mb-6">
-        <h3 className="type-label text-[var(--color-text-muted)] mb-3">Registrar contacto de hoy</h3>
-        <form onSubmit={registrarInteraccion} className="flex flex-col gap-2 items-start">
-          <select className={`${fieldInputClass} w-full`} value={tipo} onChange={(e) => setTipo(e.target.value)}>
-            {Object.entries(TIPO_INTERACCION).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
+      <form onSubmit={registrarInteraccion}>
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="type-label text-[var(--color-text-muted)]">Registrar contacto de hoy</h3>
+            <span className="text-xs text-[var(--color-text-muted)]">Hoy · {hoyLabel}</span>
+          </div>
+          <div className="flex flex-col gap-2 items-start">
+            <select className={`${fieldInputClass} w-full`} value={tipo} onChange={(e) => setTipo(e.target.value)}>
+              {Object.entries(TIPO_INTERACCION).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+            <textarea
+              className={`${fieldInputClass} resize-y`}
+              rows={2}
+              placeholder="Qué se habló, qué pasó…"
+              value={detalle}
+              onChange={(e) => setDetalle(e.target.value)}
+              required
+            />
+          </div>
+        </div>
+
+        <div className="mb-6 pt-6 border-t border-[var(--color-border-subtle)]">
+          <h3 className="type-label text-[var(--color-text-muted)] mb-3">Acciones futuras</h3>
+          <div className="flex flex-col gap-2 items-start w-full">
+            {accionesFuturas.map((a, i) => (
+              <div key={i} className="flex flex-wrap gap-2 w-full">
+                <input
+                  className={`${fieldInputClass} flex-1 min-w-[140px]`}
+                  placeholder="Acción — ej: llamar"
+                  value={a.accion}
+                  onChange={(e) => setAccionesFuturas((prev) => prev.map((x, idx) => (idx === i ? { ...x, accion: e.target.value } : x)))}
+                />
+                <input
+                  className={`${fieldInputClass} flex-1 min-w-[140px]`}
+                  placeholder="Detalle (opcional)"
+                  value={a.texto}
+                  onChange={(e) => setAccionesFuturas((prev) => prev.map((x, idx) => (idx === i ? { ...x, texto: e.target.value } : x)))}
+                />
+                <input
+                  type="date"
+                  className={fieldInputClass}
+                  value={a.fecha_ejecucion}
+                  onChange={(e) => setAccionesFuturas((prev) => prev.map((x, idx) => (idx === i ? { ...x, fecha_ejecucion: e.target.value } : x)))}
+                />
+              </div>
             ))}
-          </select>
-          <textarea
-            className={`${fieldInputClass} resize-y`}
-            rows={2}
-            placeholder="Qué se habló, qué pasó…"
-            value={detalle}
-            onChange={(e) => setDetalle(e.target.value)}
-            required
-          />
-          {accionesNuevas.map((a, i) => (
-            <div key={i} className="flex gap-2 w-full">
-              <input
-                className={`${fieldInputClass} flex-1`}
-                placeholder="Próxima acción (opcional) — ej: llamar por revisión"
-                value={a.descripcion}
-                onChange={(e) => setAccionesNuevas((prev) => prev.map((x, idx) => (idx === i ? { ...x, descripcion: e.target.value } : x)))}
-              />
-              <input
-                type="date"
-                className={fieldInputClass}
-                value={a.fecha_ejecucion}
-                onChange={(e) => setAccionesNuevas((prev) => prev.map((x, idx) => (idx === i ? { ...x, fecha_ejecucion: e.target.value } : x)))}
-              />
-            </div>
-          ))}
-          <button
-            type="button"
-            className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-brand-red)] underline"
-            onClick={() => setAccionesNuevas((prev) => [...prev, { descripcion: "", fecha_ejecucion: "" }])}
-          >
-            + agregar otra acción
-          </button>
-          <button type="submit" disabled={registrando} className={btnPrimaryClass}>
-            {registrando ? "Registrando…" : "Registrar"}
-          </button>
-        </form>
-      </div>
+            <button
+              type="button"
+              className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-brand-red)] underline"
+              onClick={() => setAccionesFuturas((prev) => [...prev, { accion: "", texto: "", fecha_ejecucion: "" }])}
+            >
+              + agregar otra acción
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" disabled={registrando} className={btnPrimaryClass}>
+          {registrando ? "Registrando…" : "Registrar"}
+        </button>
+      </form>
 
       <div>
         <h3 className="type-label text-[var(--color-text-muted)] mb-3">Historial</h3>
