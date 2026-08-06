@@ -21,19 +21,26 @@ export async function PATCH(
     return NextResponse.json({ error: "Formato inválido" }, { status: 400 });
   }
 
+  const ahora = new Date().toISOString();
   const update: Record<string, boolean | string | null> = {};
   if (typeof body.whatsapp_enviado === "boolean") {
     update.whatsapp_enviado = body.whatsapp_enviado;
-    update.whatsapp_enviado_en = body.whatsapp_enviado ? new Date().toISOString() : null;
-    if (body.whatsapp_enviado) update.categoria = "contactado_whatsapp";
+    update.whatsapp_enviado_en = body.whatsapp_enviado ? ahora : null;
+    if (body.whatsapp_enviado) {
+      update.categoria = "contactado_whatsapp";
+      update.categoria_actualizada_en = ahora;
+    }
   }
   if (typeof body.whatsapp_sin_wa === "boolean") {
     update.whatsapp_sin_wa = body.whatsapp_sin_wa;
   }
   if (typeof body.mail_enviado === "boolean") {
     update.mail_enviado = body.mail_enviado;
-    update.mail_enviado_en = body.mail_enviado ? new Date().toISOString() : null;
-    if (body.mail_enviado) update.categoria = "contactado_mail";
+    update.mail_enviado_en = body.mail_enviado ? ahora : null;
+    if (body.mail_enviado) {
+      update.categoria = "contactado_mail";
+      update.categoria_actualizada_en = ahora;
+    }
   }
 
   if (Object.keys(update).length === 0) {

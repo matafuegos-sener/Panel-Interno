@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ContactoUnificado, FiltroContactosState } from "@/data/crmUnificado";
+import { AtajoCrm, ContactoUnificado, FiltroContactosState } from "@/data/crmUnificado";
 
 export interface OpcionesFiltro {
   categorias: string[];
@@ -52,5 +52,15 @@ export function useContactosUnificados() {
     return data;
   }
 
-  return { opciones, error, buscarLote };
+  async function buscarAtajo(atajo: AtajoCrm): Promise<ContactoUnificado[]> {
+    const res = await fetch(`/api/admin/crm/lote?atajo=${atajo}`);
+    const data = await res.json();
+    if (!Array.isArray(data)) {
+      setError(data?.error ? `lote: ${data.error}` : "No se pudo traer el lote");
+      return [];
+    }
+    return data;
+  }
+
+  return { opciones, error, buscarLote, buscarAtajo };
 }

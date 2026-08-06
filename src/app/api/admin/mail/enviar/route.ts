@@ -158,9 +158,15 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
+    const ahoraEnvio = new Date().toISOString();
     await supabaseAdmin
       .from(tabla)
-      .update({ mail_enviado: true, mail_enviado_en: new Date().toISOString(), categoria: "contactado_mail" })
+      .update({
+        mail_enviado: true,
+        mail_enviado_en: ahoraEnvio,
+        categoria: "contactado_mail",
+        categoria_actualizada_en: ahoraEnvio,
+      })
       .eq("id", item.id);
     enviados.push({ id: item.id, tabla });
     await marcarItem(item, "enviado");

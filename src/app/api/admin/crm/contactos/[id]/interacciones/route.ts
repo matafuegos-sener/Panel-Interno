@@ -60,11 +60,18 @@ export async function POST(
   // `estado_crm` es el seguimiento comercial. "llamar_luego" no tiene un
   // tipo de interacción propio -- sale de cargar una próxima acción, salvo
   // que este tipo ya tenga un estado más específico (ej: pidió cotización).
+  const ahora = new Date().toISOString();
   const update: Record<string, string> = {};
   const categoriaNueva = TIPO_A_CATEGORIA[body.tipo];
-  if (categoriaNueva) update.categoria = categoriaNueva;
+  if (categoriaNueva) {
+    update.categoria = categoriaNueva;
+    update.categoria_actualizada_en = ahora;
+  }
   const estadoCrmNuevo = TIPO_A_ESTADO_CRM[body.tipo] ?? (validAcciones.length ? "llamar_luego" : undefined);
-  if (estadoCrmNuevo) update.estado_crm = estadoCrmNuevo;
+  if (estadoCrmNuevo) {
+    update.estado_crm = estadoCrmNuevo;
+    update.estado_crm_actualizado_en = ahora;
+  }
   if (Object.keys(update).length > 0) {
     await supabaseAdmin.from(tabla).update(update).eq("id", id);
   }

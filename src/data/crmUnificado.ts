@@ -49,6 +49,10 @@ export interface ContactoUnificado {
   whatsappEnviado: boolean;
   whatsappSinWa: boolean;
   mailEnviado: boolean;
+  // Solo viene poblado cuando el lote sale de un atajo (ver AtajoCrm más
+  // abajo) -- la fecha de la interacción o de la acción que lo trajo, para
+  // poder mostrarla en la tabla. En el filtro manual siempre es undefined.
+  fechaAtajo?: string | null;
 }
 
 export function unificarDesdeContactos(c: Contacto): ContactoUnificado {
@@ -60,7 +64,9 @@ export function unificarDesdeContactos(c: Contacto): ContactoUnificado {
     tier: c.tier,
     fuente: c.fuente,
     categoria: c.categoria,
+    categoriaFecha: c.categoria_actualizada_en,
     estadoCrm: c.estado_crm,
+    estadoCrmFecha: c.estado_crm_actualizado_en,
     telefono: c.telefono,
     email: c.mail_1,
     personaContacto: c.contacto,
@@ -80,7 +86,9 @@ export function unificarDesdeTracking(l: LeadBase): ContactoUnificado {
     tier: l.tier,
     fuente: l.fuente,
     categoria: l.categoria,
+    categoriaFecha: l.categoria_actualizada_en,
     estadoCrm: l.estado_crm,
+    estadoCrmFecha: l.estado_crm_actualizado_en,
     telefono: l.telefono,
     email: l.email,
     personaContacto: l.contacto,
@@ -90,6 +98,10 @@ export function unificarDesdeTracking(l: LeadBase): ContactoUnificado {
     mailEnviado: l.mail_enviado,
   };
 }
+
+// Segmento aparte de accesos rápidos en el CRM (ver /api/admin/crm/lote) --
+// nunca se combina con FiltroContactosState, uno de los dos manda.
+export type AtajoCrm = "tocados_recientes" | "semana" | "acciones_pendientes";
 
 export interface FiltroContactosState {
   categoria: string;

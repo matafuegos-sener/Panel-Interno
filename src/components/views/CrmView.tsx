@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Accion, Contacto, Interaccion, TIPO_INTERACCION } from "@/data/crm";
-import { CATEGORIA_LABEL, ContactoUnificado, ESTADO_CRM_LABEL, FILTRO_VACIO, FiltroContactosState, unificarDesdeContactos } from "@/data/crmUnificado";
+import { AtajoCrm, CATEGORIA_LABEL, ContactoUnificado, ESTADO_CRM_LABEL, FILTRO_VACIO, FiltroContactosState, unificarDesdeContactos } from "@/data/crmUnificado";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
 import FiltrosContactos from "@/components/FiltrosContactos";
 import Modal from "@/components/Modal";
@@ -17,18 +17,38 @@ const WHATSAPP_LABEL: Record<string, string> = { SI: "Sí", NO: "No", VERIFICAR:
 
 const CAP_LOTE = 100;
 
+const ATAJOS: { valor: AtajoCrm; label: string }[] = [
+  { valor: "tocados_recientes", label: "Actividad reciente" },
+  { valor: "semana", label: "Contactados esta semana" },
+  { valor: "acciones_pendientes", label: "Acciones pendientes" },
+];
+
 export default function CrmView() {
-  const { opciones, error, buscarLote } = useContactosUnificados();
+  const { opciones, error, buscarLote, buscarAtajo } = useContactosUnificados();
   const [filtro, setFiltro] = useState<FiltroContactosState>(FILTRO_VACIO);
+  const [atajoActivo, setAtajoActivo] = useState<AtajoCrm | null>(null);
   const [lote, setLote] = useState<ContactoUnificado[] | null>(null);
   const [totalLote, setTotalLote] = useState(0);
   const [cargandoLote, setCargandoLote] = useState(false);
   const [seleccionado, setSeleccionado] = useState<ContactoUnificado | null>(null);
   const [nuevoAbierto, setNuevoAbierto] = useState(false);
 
+  // El filtro manual y los atajos son dos caminos que nunca se combinan --
+  // apretar uno pisa al otro, así siempre queda claro cuál trajo el lote.
   async function traerLote() {
+    setAtajoActivo(null);
     setCargandoLote(true);
     const encontrados = await buscarLote(filtro);
+    setTotalLote(encontrados.length);
+    setLote(encontrados.slice(0, CAP_LOTE));
+    setCargandoLote(false);
+  }
+
+  async function traerAtajo(atajo: AtajoCrm) {
+    setFiltro(FILTRO_VACIO);
+    setAtajoActivo(atajo);
+    setCargandoLote(true);
+    const encontrados = await buscarAtajo(atajo);
     setTotalLote(encontrados.length);
     setLote(encontrados.slice(0, CAP_LOTE));
     setCargandoLote(false);
@@ -52,7 +72,7 @@ export default function CrmView() {
         </p>
       )}
 
-      <div className={`${panelCardClass} p-4 mb-6`}>
+      <div className={`${panelCardClass} p-4 mb-4`}>
         <FiltrosContactos
           opciones={opciones ?? { categorias: [], rubros: [], tiers: [] }}
           value={filtro}
@@ -60,6 +80,23 @@ export default function CrmView() {
           onFiltrar={traerLote}
           mostrarBusqueda
         />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        {ATAJOS.map((a) => (
+          <button
+            key={a.valor}
+            type="button"
+            onClick={() => traerAtajo(a.valor)}
+            className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors duration-200 ${
+              atajoActivo === a.valor
+                ? "bg-[var(--color-brand-red)] border-[var(--color-brand-red)] text-white"
+                : "border-[var(--color-border)] text-[var(--color-brand-gray)] hover:border-[var(--color-brand-red)] hover:text-[var(--color-brand-red)]"
+            }`}
+          >
+            {a.label}
+          </button>
+        ))}
       </div>
 
       {cargandoLote && <p className="text-sm text-[var(--color-text-muted)] py-12 text-center">Buscando contactos…</p>}
@@ -92,6 +129,9 @@ export default function CrmView() {
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Categoría</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Estado CRM</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Teléfono</th>
+                    {atajoActivo === "acciones_pendientes" && (
+                      <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Próxima acción</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -104,11 +144,18 @@ export default function CrmView() {
                       <td className="px-4 py-3 font-medium text-[var(--color-brand-dark)]">{r.nombre}</td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.rubro || "—"}</td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.tier || "—"}</td>
-                      <td className="px-4 py-3 text-[var(--color-text-muted)]">{CATEGORIA_LABEL[r.categoria] ?? r.categoria}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-muted)]">
+                        {CATEGORIA_LABEL[r.categoria] ?? r.categoria}
+                        {r.categoriaFecha && <span className="block text-xs">{fmtFecha(r.categoriaFecha)}</span>}
+                      </td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">
                         {r.estadoCrm ? ESTADO_CRM_LABEL[r.estadoCrm] ?? r.estadoCrm : "—"}
+                        {r.estadoCrmFecha && <span className="block text-xs">{fmtFecha(r.estadoCrmFecha)}</span>}
                       </td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.telefono || <em className="text-xs">sin dato</em>}</td>
+                      {atajoActivo === "acciones_pendientes" && (
+                        <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.fechaAtajo ? fmtFecha(r.fechaAtajo) : "—"}</td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -309,10 +356,12 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
           <div className="flex flex-wrap gap-1.5 mt-1">
             <span className="inline-block px-1.5 py-0.5 rounded text-xs border border-[var(--color-border)] text-[var(--color-text-muted)]">
               {CATEGORIA_LABEL[unificado.categoria] ?? unificado.categoria}
+              {unificado.categoriaFecha && ` — ${fmtFecha(unificado.categoriaFecha)}`}
             </span>
             {unificado.estadoCrm && (
               <span className="inline-block px-1.5 py-0.5 rounded text-xs border border-[var(--color-brand-red-subtle)] text-[var(--color-brand-red)]">
                 {ESTADO_CRM_LABEL[unificado.estadoCrm] ?? unificado.estadoCrm}
+                {unificado.estadoCrmFecha && ` — ${fmtFecha(unificado.estadoCrmFecha)}`}
               </span>
             )}
           </div>
