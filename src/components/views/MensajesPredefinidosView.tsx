@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Canal, MensajePredefinido, MensajeInput } from "@/data/mensajes";
 import Modal from "@/components/Modal";
-import { fieldLabelClass, fieldInputClass, btnPrimaryClass, panelCardClass } from "@/components/formStyles";
+import { fieldLabelClass, fieldInputClass, btnPrimaryClass, btnSecondaryClass, panelCardClass } from "@/components/formStyles";
 
 const TITULOS: Record<Canal, string> = {
   mail: "Mensajes predefinidos — Mail",
@@ -117,6 +117,56 @@ function MensajeForm({
   const [cuerpo, setCuerpo] = useState(mensaje?.cuerpo ?? "");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Envuelve la selección actual del textarea con prefijo/sufijo (ej. ** **
+  // para negrita) -- si no hay nada seleccionado, inserta un texto de
+  // referencia para que el usuario lo reemplace.
+  function envolverSeleccion(prefijo: string, sufijo: string, textoPorDefecto: string) {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const inicio = textarea.selectionStart;
+    const fin = textarea.selectionEnd;
+    const seleccionado = cuerpo.slice(inicio, fin) || textoPorDefecto;
+    setCuerpo(cuerpo.slice(0, inicio) + prefijo + seleccionado + sufijo + cuerpo.slice(fin));
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const nuevaPosicion = inicio + prefijo.length + seleccionado.length + sufijo.length;
+      textarea.setSelectionRange(nuevaPosicion, nuevaPosicion);
+    });
+  }
+
+  function insertarEnCursor(texto: string) {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const inicio = textarea.selectionStart;
+    const fin = textarea.selectionEnd;
+    setCuerpo(cuerpo.slice(0, inicio) + texto + cuerpo.slice(fin));
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const nuevaPosicion = inicio + texto.length;
+      textarea.setSelectionRange(nuevaPosicion, nuevaPosicion);
+    });
+  }
+
+  // Mail soporta HTML real (**negrita** -> <strong>, [texto](url) -> <a>,
+  // ver lib/plantillas.ts). WhatsApp no interpreta markdown -- su negrita
+  // real es *un solo asterisco*, y un link ahí es la URL pelada, WhatsApp la
+  // auto-detecta y la previsualiza sola, no admite texto de anchor.
+  function aplicarNegrita() {
+    const marca = canal === "whatsapp" ? "*" : "**";
+    envolverSeleccion(marca, marca, "texto");
+  }
+
+  function aplicarLink() {
+    const url = window.prompt("Pegá la URL del link (con https://)");
+    if (!url || !url.trim()) return;
+    if (canal === "whatsapp") {
+      insertarEnCursor(url.trim());
+      return;
+    }
+    envolverSeleccion("[", `](${url.trim()})`, "texto del link");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -184,7 +234,21 @@ function MensajeForm({
 
         <label>
           <span className={fieldLabelClass}>Mensaje</span>
+          <div className="flex items-center gap-2 mb-2">
+            <button type="button" onClick={aplicarNegrita} className={btnSecondaryClass}>
+              Negrita
+            </button>
+            <button type="button" onClick={aplicarLink} className={btnSecondaryClass}>
+              Link
+            </button>
+            <span className="text-xs text-[var(--color-text-muted)]">
+              {canal === "whatsapp"
+                ? "Seleccioná texto y tocá Negrita. Link inserta la URL pelada — WhatsApp la previsualiza sola."
+                : "Seleccioná texto y tocá Negrita o Link. Se ve como negrita/link real en el mail."}
+            </span>
+          </div>
           <textarea
+            ref={textareaRef}
             className={`${fieldInputClass} resize-y`}
             rows={12}
             value={cuerpo}

@@ -9,6 +9,7 @@ interface EnviarMailInput {
   to: string;
   subject: string;
   text: string;
+  html?: string;
 }
 
 interface EnviarMailResultado {
@@ -17,7 +18,7 @@ interface EnviarMailResultado {
   error?: string;
 }
 
-export async function enviarMail({ to, subject, text }: EnviarMailInput): Promise<EnviarMailResultado> {
+export async function enviarMail({ to, subject, text, html }: EnviarMailInput): Promise<EnviarMailResultado> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     return { ok: false, error: "Falta RESEND_API_KEY en .env.local" };
@@ -29,7 +30,7 @@ export async function enviarMail({ to, subject, text }: EnviarMailInput): Promis
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: MAIL_FROM, to, subject, text }),
+    body: JSON.stringify({ from: MAIL_FROM, to, subject, text, ...(html ? { html } : {}) }),
   });
 
   const data = await res.json().catch(() => null);

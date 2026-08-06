@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { enviarMail } from "@/lib/resend";
+import { textoAHtml, textoAPlano } from "@/lib/plantillas";
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminAuthed())) {
@@ -21,8 +22,9 @@ export async function POST(req: NextRequest) {
 
   const resultado = await enviarMail({
     to: body.destinatario.trim(),
-    subject: `[TEST] ${body.asunto.trim()}`,
-    text: body.cuerpo,
+    subject: `[TEST] ${textoAPlano(body.asunto.trim())}`,
+    text: textoAPlano(body.cuerpo),
+    html: textoAHtml(body.cuerpo),
   });
 
   if (!resultado.ok) {

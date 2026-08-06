@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { enviarMail } from "@/lib/resend";
-import { reemplazarVariables } from "@/lib/plantillas";
+import { reemplazarVariables, textoAHtml, textoAPlano } from "@/lib/plantillas";
 import { TablaOrigen } from "@/data/crm";
 
 interface ItemTanda {
@@ -149,9 +149,14 @@ export async function POST(req: NextRequest) {
     }
 
     const nombre = nombreDeFila(tabla, fila);
-    const asunto = reemplazarVariables(body.asunto.trim(), nombre);
+    const asunto = textoAPlano(reemplazarVariables(body.asunto.trim(), nombre));
     const cuerpo = reemplazarVariables(body.cuerpo, nombre);
-    const resultado = await enviarMail({ to: email, subject: asunto, text: cuerpo });
+    const resultado = await enviarMail({
+      to: email,
+      subject: asunto,
+      text: textoAPlano(cuerpo),
+      html: textoAHtml(cuerpo),
+    });
     if (!resultado.ok) {
       fallidos.push({ id: item.id, tabla, motivo: resultado.error || "Resend rechazó el envío" });
       await marcarItem(item, "fallido", resultado.error || "Resend rechazó el envío");
