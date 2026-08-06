@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Accion, Contacto, Interaccion, TIPO_INTERACCION } from "@/data/crm";
-import { CATEGORIA_LABEL, ContactoUnificado, FILTRO_VACIO, FiltroContactosState, unificarDesdeContactos } from "@/data/crmUnificado";
+import { CATEGORIA_LABEL, ContactoUnificado, ESTADO_CRM_LABEL, FILTRO_VACIO, FiltroContactosState, unificarDesdeContactos } from "@/data/crmUnificado";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
 import FiltrosContactos from "@/components/FiltrosContactos";
 import Modal from "@/components/Modal";
@@ -90,6 +90,7 @@ export default function CrmView() {
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Rubro</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Tier</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Categoría</th>
+                    <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Estado CRM</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Teléfono</th>
                   </tr>
                 </thead>
@@ -104,6 +105,9 @@ export default function CrmView() {
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.rubro || "—"}</td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.tier || "—"}</td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{CATEGORIA_LABEL[r.categoria] ?? r.categoria}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-muted)]">
+                        {r.estadoCrm ? ESTADO_CRM_LABEL[r.estadoCrm] ?? r.estadoCrm : "—"}
+                      </td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.telefono || <em className="text-xs">sin dato</em>}</td>
                     </tr>
                   ))}
@@ -302,9 +306,16 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-bold text-[var(--color-brand-dark)]">{unificado.nombre}</h2>
-          <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-xs border border-[var(--color-border)] text-[var(--color-text-muted)]">
-            {CATEGORIA_LABEL[unificado.categoria] ?? unificado.categoria}
-          </span>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            <span className="inline-block px-1.5 py-0.5 rounded text-xs border border-[var(--color-border)] text-[var(--color-text-muted)]">
+              {CATEGORIA_LABEL[unificado.categoria] ?? unificado.categoria}
+            </span>
+            {unificado.estadoCrm && (
+              <span className="inline-block px-1.5 py-0.5 rounded text-xs border border-[var(--color-brand-red-subtle)] text-[var(--color-brand-red)]">
+                {ESTADO_CRM_LABEL[unificado.estadoCrm] ?? unificado.estadoCrm}
+              </span>
+            )}
+          </div>
         </div>
         <button type="button" onClick={onClose} className="text-[var(--color-brand-gray)] hover:text-[var(--color-brand-dark)]">
           <X className="w-5 h-5" />

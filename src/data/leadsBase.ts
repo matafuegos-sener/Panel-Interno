@@ -26,6 +26,9 @@ export interface LeadBase {
   email: string | null;
   fuente: string | null;
   categoria: string;
+  categoria_actualizada_en: string | null;
+  estado_crm: string | null;
+  estado_crm_actualizado_en: string | null;
   notas: string | null;
   whatsapp_enviado: boolean;
   whatsapp_enviado_en: string | null;

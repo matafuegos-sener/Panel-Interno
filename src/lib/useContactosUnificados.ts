@@ -37,6 +37,7 @@ export function useContactosUnificados() {
   async function buscarLote(filtro: FiltroContactosState): Promise<ContactoUnificado[]> {
     const params = new URLSearchParams();
     if (filtro.categoria) params.set("categoria", filtro.categoria);
+    if (filtro.estadoCrm) params.set("estado_crm", filtro.estadoCrm);
     if (filtro.rubros.length > 0) params.set("rubros", filtro.rubros.join(","));
     if (filtro.tier) params.set("tier", filtro.tier);
     if (filtro.activo) params.set("activo", filtro.activo);

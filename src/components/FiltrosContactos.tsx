@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { CATEGORIA_LABEL, FiltroContactosState } from "@/data/crmUnificado";
+import { CATEGORIA_LABEL, ESTADO_CRM_LABEL, FiltroContactosState } from "@/data/crmUnificado";
 import { OpcionesFiltro } from "@/lib/useContactosUnificados";
 import { btnPrimaryClass } from "@/components/formStyles";
 
@@ -39,6 +39,15 @@ export default function FiltrosContactos({ opciones, value, onChange, onFiltrar,
           <option value="">Categoría — todas</option>
           {categorias.map((c) => (
             <option key={c} value={c}>{CATEGORIA_LABEL[c] ?? c}</option>
+          ))}
+        </select>
+      )}
+
+      {mostrarCategoria && (
+        <select className={selectClass} value={value.estadoCrm} onChange={(e) => onChange({ ...value, estadoCrm: e.target.value })}>
+          <option value="">Estado CRM — todos</option>
+          {Object.entries(ESTADO_CRM_LABEL).map(([valor, label]) => (
+            <option key={valor} value={valor}>{label}</option>
           ))}
         </select>
       )}

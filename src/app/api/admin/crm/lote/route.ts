@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl;
   const categoria = searchParams.get("categoria") || "";
+  const estadoCrm = searchParams.get("estado_crm") || "";
   const rubros = searchParams.get("rubros")?.split(",").filter(Boolean) ?? [];
   const tier = searchParams.get("tier") || "";
   const activo = searchParams.get("activo") || "";
@@ -33,10 +34,14 @@ export async function GET(req: NextRequest) {
   for (let desde = 0; desde < MAX_FILAS_POR_TABLA; desde += TAMANO_PAGINA) {
     let query = supabaseAdmin.from("contactos").select("*").range(desde, desde + TAMANO_PAGINA - 1);
     if (categoria) query = query.eq("categoria", categoria);
+    if (estadoCrm) query = query.eq("estado_crm", estadoCrm);
     if (rubros.length > 0) query = query.in("tipo_perfil", rubros);
     if (tier) query = query.eq("tier", tier);
     if (activo === "si") query = query.eq("activo", true);
-    if (activo === "no") query = query.eq("activo", false);
+    // "no" incluye NULL además de false: en leads_base (0006_uniformar_base.sql)
+    // `activo` arranca sin valor hasta que se marca a mano -- mientras nadie lo
+    // haga, esos contactos son inactivos en la práctica, no "sin dato" aparte.
+    if (activo === "no") query = query.or("activo.eq.false,activo.is.null");
     if (busqueda) query = query.or(`razon_social.ilike.%${busqueda}%,nombre_comercial.ilike.%${busqueda}%`);
 
     const { data, error } = await query;
@@ -48,24 +53,22 @@ export async function GET(req: NextRequest) {
   }
 
   const tracking: LeadBase[] = [];
-  // leads_base no trackea "activo" (columna no existe) -- "solo activos" no
-  // excluye nada acá (mismo criterio que aplicaFiltro en el cliente antes de
-  // este cambio), "solo inactivos" excluye la tabla entera.
-  if (activo !== "no") {
-    for (let desde = 0; desde < MAX_FILAS_POR_TABLA; desde += TAMANO_PAGINA) {
-      let query = supabaseAdmin.from("leads_base").select("*").range(desde, desde + TAMANO_PAGINA - 1);
-      if (categoria) query = query.eq("categoria", categoria);
-      if (rubros.length > 0) query = query.in("rubro", rubros);
-      if (tier) query = query.eq("tier", tier);
-      if (busqueda) query = query.ilike("nombre", `%${busqueda}%`);
+  for (let desde = 0; desde < MAX_FILAS_POR_TABLA; desde += TAMANO_PAGINA) {
+    let query = supabaseAdmin.from("leads_base").select("*").range(desde, desde + TAMANO_PAGINA - 1);
+    if (categoria) query = query.eq("categoria", categoria);
+    if (estadoCrm) query = query.eq("estado_crm", estadoCrm);
+    if (rubros.length > 0) query = query.in("rubro", rubros);
+    if (tier) query = query.eq("tier", tier);
+    if (activo === "si") query = query.eq("activo", true);
+    if (activo === "no") query = query.or("activo.eq.false,activo.is.null");
+    if (busqueda) query = query.ilike("nombre", `%${busqueda}%`);
 
-      const { data, error } = await query;
-      if (error) {
-        return NextResponse.json({ error: `leads_base: ${error.message}` }, { status: 500 });
-      }
-      tracking.push(...data);
-      if (data.length < TAMANO_PAGINA) break;
+    const { data, error } = await query;
+    if (error) {
+      return NextResponse.json({ error: `leads_base: ${error.message}` }, { status: 500 });
     }
+    tracking.push(...data);
+    if (data.length < TAMANO_PAGINA) break;
   }
 
   const unificados = [...contactos.map(unificarDesdeContactos), ...tracking.map(unificarDesdeTracking)];
