@@ -103,9 +103,9 @@ export default function CrmView() {
         <select
           value={filtro.estadoCrm}
           onChange={(e) => setFiltro({ ...filtro, estadoCrm: e.target.value })}
-          className={`px-4 py-2 rounded-full text-sm font-medium border bg-white transition-colors duration-200 ${
+          className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors duration-200 ${
             filtro.estadoCrm
-              ? "border-[var(--color-brand-red)] text-[var(--color-brand-red)]"
+              ? "bg-[var(--color-brand-red)] border-[var(--color-brand-red)] text-white"
               : "border-[var(--color-border)] text-[var(--color-brand-gray)] hover:border-[var(--color-brand-red)] hover:text-[var(--color-brand-red)]"
           }`}
         >
