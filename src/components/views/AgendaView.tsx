@@ -54,6 +54,7 @@ function badgeTipo(tipo: string) {
 export default function AgendaView() {
   const [vista, setVista] = useState<Vista>("semana");
   const [fechaBase, setFechaBase] = useState(new Date());
+  const [fechaInput, setFechaInput] = useState(isoDate(new Date()));
   const [datos, setDatos] = useState<{ rango: string; eventos: EventoAgenda[] } | null>(null);
   const [modalNuevo, setModalNuevo] = useState<string | null>(null);
   const [detalle, setDetalle] = useState<EventoAgenda | null>(null);
@@ -71,6 +72,10 @@ export default function AgendaView() {
   const rango = `${isoDate(desde)}_${isoDate(hasta)}`;
   const cargando = datos === null || datos.rango !== rango;
   const eventos = datos?.rango === rango ? datos.eventos : null;
+
+  useEffect(() => {
+    setFechaInput(isoDate(fechaBase));
+  }, [fechaBase]);
 
   useEffect(() => {
     let cancelado = false;
@@ -137,25 +142,18 @@ export default function AgendaView() {
         <EnviosActivosPanel limite={5} />
       </div>
 
-      <div className={`${panelCardClass} p-3 mb-6 flex flex-wrap items-center justify-between gap-3`}>
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => mover(-1)} className={btnSecondaryClass} aria-label="Anterior">
-            ←
-          </button>
-          <button type="button" onClick={() => setFechaBase(new Date())} className={btnSecondaryClass}>
-            Hoy
-          </button>
-          <button type="button" onClick={() => mover(1)} className={btnSecondaryClass} aria-label="Siguiente">
-            →
-          </button>
-          <span className="font-medium text-[var(--color-brand-dark)] capitalize px-2">{labelRango()}</span>
-          <input
-            type="date"
-            className={`${fieldInputClass} w-40`}
-            value={isoDate(fechaBase)}
-            onChange={(e) => e.target.value && setFechaBase(parseIsoDate(e.target.value))}
-          />
-        </div>
+      <div className={`${panelCardClass} p-3 mb-6 flex flex-wrap items-center gap-3`}>
+        <button type="button" onClick={() => mover(-1)} className={btnSecondaryClass} aria-label="Anterior">
+          ←
+        </button>
+        <button type="button" onClick={() => setFechaBase(new Date())} className={btnSecondaryClass}>
+          Hoy
+        </button>
+        <button type="button" onClick={() => mover(1)} className={btnSecondaryClass} aria-label="Siguiente">
+          →
+        </button>
+        <span className="font-medium text-[var(--color-brand-dark)] capitalize px-2">{labelRango()}</span>
+
         <div className="flex gap-1">
           {(["dia", "semana", "mes"] as Vista[]).map((v) => (
             <button
@@ -172,6 +170,20 @@ export default function AgendaView() {
             </button>
           ))}
         </div>
+
+        <input
+          type="date"
+          className="w-40 shrink-0 border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm text-[var(--color-brand-dark)] bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-red)] focus:border-transparent"
+          value={fechaInput}
+          onChange={(e) => setFechaInput(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={() => fechaInput && setFechaBase(parseIsoDate(fechaInput))}
+          className={btnSecondaryClass}
+        >
+          Buscar
+        </button>
       </div>
 
       {cargando && <p className="text-sm text-[var(--color-text-muted)] py-6 text-center">Cargando…</p>}
