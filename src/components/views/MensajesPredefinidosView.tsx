@@ -153,19 +153,21 @@ function MensajeForm({
   // ver lib/plantillas.ts). WhatsApp no interpreta markdown -- su negrita
   // real es *un solo asterisco*, y un link ahí es la URL pelada, WhatsApp la
   // auto-detecta y la previsualiza sola, no admite texto de anchor.
+  const URL_SITIO = "https://matafuegossener.com.ar";
+
   function aplicarNegrita() {
     const marca = canal === "whatsapp" ? "*" : "**";
     envolverSeleccion(marca, marca, "texto");
   }
 
+  // Mismo gesto que Negrita: un click, sin diálogo. La URL del sitio es
+  // siempre la misma para esta campaña, no hace falta preguntarla cada vez.
   function aplicarLink() {
-    const url = window.prompt("Pegá la URL del link (con https://)");
-    if (!url || !url.trim()) return;
     if (canal === "whatsapp") {
-      insertarEnCursor(url.trim());
+      insertarEnCursor(URL_SITIO);
       return;
     }
-    envolverSeleccion("[", `](${url.trim()})`, "texto del link");
+    envolverSeleccion("[", `](${URL_SITIO})`, "texto del link");
   }
 
   async function handleSubmit(e: React.FormEvent) {

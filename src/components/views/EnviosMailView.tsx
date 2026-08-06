@@ -8,7 +8,10 @@ import { reemplazarVariables } from "@/lib/plantillas";
 import FiltrosContactos from "@/components/FiltrosContactos";
 import { fieldLabelClass, fieldInputClass, btnPrimaryClass, btnSecondaryClass, panelCardClass } from "@/components/formStyles";
 
-const FIRMA_TEXTO = "Matafuegos Sener — Insumos y servicios contra incendios\n+54 11 5318-0515 · matafuegossener.com.ar";
+// Sin dominio ni ninguna URL acá: Gmail auto-linkea dominios sueltos aunque
+// no estén en un <a>, y la regla de deliverability es un solo link por mail
+// (el CTA del cuerpo) -- ver CLAUDE.md, sección de email.
+const FIRMA_DEFAULT = "Matafuegos Sener — Insumos y servicios contra incendios\n+54 11 5318-0515";
 const TAMANO_TANDA_DEFAULT = 15;
 const TAMANO_TANDA_MAX = 25;
 
@@ -24,6 +27,7 @@ export default function EnviosMailView() {
   const [cuerpo, setCuerpo] = useState("");
   const [tamano, setTamano] = useState(TAMANO_TANDA_DEFAULT);
 
+  const [firma, setFirma] = useState(() => (typeof window !== "undefined" ? window.localStorage.getItem("sener_firma_mail") ?? FIRMA_DEFAULT : FIRMA_DEFAULT));
   const [testMail, setTestMail] = useState(() => (typeof window !== "undefined" ? window.localStorage.getItem("sener_test_mail") ?? "" : ""));
   const [testNombre, setTestNombre] = useState(() => (typeof window !== "undefined" ? window.localStorage.getItem("sener_test_nombre") ?? "" : ""));
   const [enviandoTest, setEnviandoTest] = useState(false);
@@ -95,7 +99,7 @@ export default function EnviosMailView() {
       body: JSON.stringify({
         destinatario: testMail.trim(),
         asunto: nombre ? reemplazarVariables(asunto, nombre) : asunto,
-        cuerpo: `${nombre ? reemplazarVariables(cuerpo, nombre) : cuerpo}\n\n${FIRMA_TEXTO}`,
+        cuerpo: `${nombre ? reemplazarVariables(cuerpo, nombre) : cuerpo}\n\n${firma}`,
       }),
     });
     const data = await res.json();
@@ -116,7 +120,7 @@ export default function EnviosMailView() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         asunto,
-        cuerpo: `${cuerpo}\n\n${FIRMA_TEXTO}`,
+        cuerpo: `${cuerpo}\n\n${firma}`,
         items: tanda.map((c) => ({ id: c.id, tabla: c.tabla })),
       }),
     });
@@ -197,10 +201,18 @@ export default function EnviosMailView() {
           <textarea className={`${fieldInputClass} resize-y`} rows={14} value={cuerpo} onChange={(e) => setCuerpo(e.target.value)} />
         </label>
 
-        <div className="p-4 rounded-lg bg-[var(--color-bg-warm)] border border-[var(--color-border-subtle)]">
-          <span className={fieldLabelClass}>Firma (fija — se agrega sola al final del mail)</span>
-          <p className="text-sm whitespace-pre-line text-[var(--color-brand-dark)]">{FIRMA_TEXTO}</p>
-        </div>
+        <label className="p-4 rounded-lg bg-[var(--color-bg-warm)] border border-[var(--color-border-subtle)] block">
+          <span className={fieldLabelClass}>Firma — se agrega sola al final del mail (sin links, para no sumar un segundo hipervínculo)</span>
+          <textarea
+            className={`${fieldInputClass} resize-y mt-2`}
+            rows={2}
+            value={firma}
+            onChange={(e) => {
+              setFirma(e.target.value);
+              window.localStorage.setItem("sener_firma_mail", e.target.value);
+            }}
+          />
+        </label>
 
         <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-[var(--color-border-subtle)]">
           <label className="max-w-xs">
