@@ -21,7 +21,7 @@ export function useContactosUnificados() {
   const [opciones, setOpciones] = useState<OpcionesFiltro | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  function cargarOpciones() {
     fetch("/api/admin/crm/opciones")
       .then((r) => r.json())
       .then((data) => {
@@ -32,6 +32,14 @@ export function useContactosUnificados() {
           setError(data?.error ? `opciones: ${data.error}` : "No se pudieron cargar las opciones de filtro");
         }
       });
+  }
+
+  // Se piden una sola vez al montar -- si se da de alta un contacto con un
+  // rubro nuevo (ver PanelNuevoContacto en CrmView.tsx), hay que volver a
+  // llamar `recargarOpciones` a mano en ese punto, si no el rubro nuevo no
+  // aparece en el filtro hasta recargar la página entera.
+  useEffect(() => {
+    cargarOpciones();
   }, []);
 
   async function buscarLote(filtro: FiltroContactosState): Promise<ContactoUnificado[]> {
@@ -62,5 +70,5 @@ export function useContactosUnificados() {
     return data;
   }
 
-  return { opciones, error, buscarLote, buscarAtajo };
+  return { opciones, error, buscarLote, buscarAtajo, recargarOpciones: cargarOpciones };
 }

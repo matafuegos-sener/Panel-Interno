@@ -2,14 +2,26 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { Accion, Contacto, Interaccion, TIPO_INTERACCION } from "@/data/crm";
+import { ACCION_OPCIONES, Accion, Contacto, Interaccion, TIPO_INTERACCION } from "@/data/crm";
 import { AtajoCrm, CATEGORIA_LABEL, ContactoUnificado, ESTADO_CRM_LABEL, FILTRO_VACIO, FiltroContactosState, unificarDesdeContactos } from "@/data/crmUnificado";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
 import FiltrosContactos from "@/components/FiltrosContactos";
 import Modal from "@/components/Modal";
 import { fieldLabelClass, fieldInputClass, btnPrimaryClass, btnSecondaryClass, panelCardClass } from "@/components/formStyles";
 
+// `fecha_ejecucion` (acciones) y `vigencia_hasta` (contactos/leads_base) son
+// columnas `date` de Postgres -- "2026-08-10" sin hora ni huso. `new
+// Date("2026-08-10")` lo interpreta como medianoche UTC, y en Argentina
+// (UTC-3) eso cae en el día anterior al convertir a hora local -- por eso
+// "10" se mostraba como "9". Para fechas puras se arma el label a mano, sin
+// pasar por Date. Los demás campos (`categoria_actualizada_en`,
+// `interacciones.fecha`) son `timestamptz` reales y sí necesitan la
+// conversión a horario local.
 function fmtFecha(d: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    const [anio, mes, dia] = d.split("-");
+    return `${dia}/${mes}/${anio}`;
+  }
   return new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
@@ -24,7 +36,7 @@ const ATAJOS: { valor: AtajoCrm; label: string }[] = [
 ];
 
 export default function CrmView() {
-  const { opciones, error, buscarLote, buscarAtajo } = useContactosUnificados();
+  const { opciones, error, buscarLote, buscarAtajo, recargarOpciones } = useContactosUnificados();
   const [filtro, setFiltro] = useState<FiltroContactosState>(FILTRO_VACIO);
   const [atajoActivo, setAtajoActivo] = useState<AtajoCrm | null>(null);
   const [lote, setLote] = useState<ContactoUnificado[] | null>(null);
@@ -191,6 +203,7 @@ export default function CrmView() {
           onCreado={(unificado) => {
             setNuevoAbierto(false);
             setSeleccionado(unificado);
+            recargarOpciones();
           }}
           onCancelar={() => setNuevoAbierto(false)}
         />
@@ -351,15 +364,18 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
         descripcion: a.texto.trim() ? `${a.accion.trim()} — ${a.texto.trim()}` : a.accion.trim(),
         fecha_ejecucion: a.fecha_ejecucion,
       }));
-    await fetch(`/api/admin/crm/contactos/${id}/interacciones`, {
+    const res = await fetch(`/api/admin/crm/contactos/${id}/interacciones`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tabla, tipo, detalle: detalle.trim(), acciones }),
     });
-    setDetalle("");
-    setAccionesFuturas([{ accion: "", texto: "", fecha_ejecucion: "" }]);
     setRegistrando(false);
-    cargarHistorial();
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      window.alert(`Error al registrar: ${data?.error ?? res.statusText}`);
+      return;
+    }
+    onClose();
   }
 
   const camposTracking: [string, string | number | null][] = camposExtra
@@ -488,15 +504,20 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
           <h3 className="type-label text-[var(--color-text-muted)] mb-3">Acciones futuras</h3>
           <div className="flex flex-col gap-2 items-start w-full">
             {accionesFuturas.map((a, i) => (
-              <div key={i} className="flex flex-wrap gap-2 w-full">
-                <input
-                  className={`${fieldInputClass} flex-1 min-w-[140px]`}
-                  placeholder="Acción — ej: llamar"
+              <div key={i} className="flex flex-col gap-2 w-full pb-4 border-b border-[var(--color-border-subtle)] last:border-0 last:pb-0">
+                <select
+                  className={fieldInputClass}
                   value={a.accion}
                   onChange={(e) => setAccionesFuturas((prev) => prev.map((x, idx) => (idx === i ? { ...x, accion: e.target.value } : x)))}
-                />
-                <input
-                  className={`${fieldInputClass} flex-1 min-w-[140px]`}
+                >
+                  <option value="">Acción — elegir</option>
+                  {ACCION_OPCIONES.map((op) => (
+                    <option key={op} value={op}>{op}</option>
+                  ))}
+                </select>
+                <textarea
+                  className={`${fieldInputClass} resize-y`}
+                  rows={2}
                   placeholder="Detalle (opcional)"
                   value={a.texto}
                   onChange={(e) => setAccionesFuturas((prev) => prev.map((x, idx) => (idx === i ? { ...x, texto: e.target.value } : x)))}

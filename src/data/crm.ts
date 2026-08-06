@@ -62,6 +62,22 @@ export const TIPO_INTERACCION: Record<string, string> = {
   problema: "Problema",
 };
 
+// Opciones fijas para "Acción futura" -- antes era texto libre y cada uno
+// escribía lo que quería (ej: "Cotizacion" vs "Cotización"), lo que hacía
+// imposible confiar en el valor guardado. `descripcion` en `acciones` sigue
+// siendo texto libre (esta lista + el campo "Detalle" se concatenan al
+// guardar, ver registrarInteraccion en CrmView.tsx), así que agregar una
+// opción acá no pisa datos históricos.
+export const ACCION_OPCIONES: string[] = [
+  "Llamar",
+  "Enviar cotización",
+  "Enviar WhatsApp",
+  "Enviar mail",
+  "Coordinar visita / instalación",
+  "Entregar pedido",
+  "Recontactar",
+];
+
 // Qué categoría le queda al contacto cuando se registra una interacción de
 // este tipo (ver CATEGORIA_LABEL en crmUnificado.ts). Esto es UN solo eje:
 // por qué canal se contactó a un contacto frío (mail/WhatsApp/llamada). Los
