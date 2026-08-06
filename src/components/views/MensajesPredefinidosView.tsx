@@ -234,19 +234,6 @@ function MensajeForm({
 
         <label>
           <span className={fieldLabelClass}>Mensaje</span>
-          <div className="flex items-center gap-2 mb-2">
-            <button type="button" onClick={aplicarNegrita} className={btnSecondaryClass}>
-              Negrita
-            </button>
-            <button type="button" onClick={aplicarLink} className={btnSecondaryClass}>
-              Link
-            </button>
-            <span className="text-xs text-[var(--color-text-muted)]">
-              {canal === "whatsapp"
-                ? "Seleccioná texto y tocá Negrita. Link inserta la URL pelada — WhatsApp la previsualiza sola."
-                : "Seleccioná texto y tocá Negrita o Link. Se ve como negrita/link real en el mail."}
-            </span>
-          </div>
           <textarea
             ref={textareaRef}
             className={`${fieldInputClass} resize-y`}
@@ -257,9 +244,20 @@ function MensajeForm({
           />
         </label>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center flex-wrap gap-3">
           <button type="submit" disabled={guardando} className={btnPrimaryClass}>
             {guardando ? "Guardando…" : "Guardar"}
+          </button>
+          <button type="button" onClick={aplicarNegrita} className={btnSecondaryClass}>
+            Negrita
+          </button>
+          <button
+            type="button"
+            onClick={aplicarLink}
+            className={btnSecondaryClass}
+            title={canal === "whatsapp" ? "Inserta la URL pelada — WhatsApp la previsualiza sola" : "Envuelve la selección como link real del mail"}
+          >
+            Link
           </button>
           {error && <span className="text-sm text-red-600">{error}</span>}
         </div>
