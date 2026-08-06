@@ -40,6 +40,10 @@ export async function GET(req: NextRequest) {
   const tier = searchParams.get("tier") || "";
   const activo = searchParams.get("activo") || "";
   const busqueda = searchParams.get("busqueda")?.trim() || "";
+  // "activo" ya no es solo el flag guardado -- un contacto vendido
+  // (0010_vigencia_activo.sql) deja de ser activo solo cuando pasa
+  // `vigencia_hasta`, sin que ningún cron lo tenga que apagar.
+  const hoy = new Date().toISOString().slice(0, 10);
 
   const contactos: Contacto[] = [];
   for (let desde = 0; desde < MAX_FILAS_POR_TABLA; desde += TAMANO_PAGINA) {
@@ -48,11 +52,12 @@ export async function GET(req: NextRequest) {
     if (estadoCrm) query = query.eq("estado_crm", estadoCrm);
     if (rubros.length > 0) query = query.in("tipo_perfil", rubros);
     if (tier) query = query.eq("tier", tier);
-    if (activo === "si") query = query.eq("activo", true);
-    // "no" incluye NULL además de false: en leads_base (0006_uniformar_base.sql)
-    // `activo` arranca sin valor hasta que se marca a mano -- mientras nadie lo
-    // haga, esos contactos son inactivos en la práctica, no "sin dato" aparte.
-    if (activo === "no") query = query.or("activo.eq.false,activo.is.null");
+    if (activo === "si") query = query.eq("activo", true).or(`vigencia_hasta.is.null,vigencia_hasta.gte.${hoy}`);
+    // "no" incluye NULL/false y también vencido: en leads_base
+    // (0006_uniformar_base.sql) `activo` arranca sin valor hasta que se
+    // marca solo, y un contacto vendido hace más de un año vuelve a ser
+    // inactivo aunque el flag siga en true.
+    if (activo === "no") query = query.or(`activo.eq.false,activo.is.null,vigencia_hasta.lt.${hoy}`);
     if (busqueda) query = query.or(`razon_social.ilike.%${busqueda}%,nombre_comercial.ilike.%${busqueda}%`);
 
     const { data, error } = await query;
@@ -70,8 +75,8 @@ export async function GET(req: NextRequest) {
     if (estadoCrm) query = query.eq("estado_crm", estadoCrm);
     if (rubros.length > 0) query = query.in("rubro", rubros);
     if (tier) query = query.eq("tier", tier);
-    if (activo === "si") query = query.eq("activo", true);
-    if (activo === "no") query = query.or("activo.eq.false,activo.is.null");
+    if (activo === "si") query = query.eq("activo", true).or(`vigencia_hasta.is.null,vigencia_hasta.gte.${hoy}`);
+    if (activo === "no") query = query.or(`activo.eq.false,activo.is.null,vigencia_hasta.lt.${hoy}`);
     if (busqueda) query = query.ilike("nombre", `%${busqueda}%`);
 
     const { data, error } = await query;

@@ -387,6 +387,12 @@ function ContactoPanel({ unificado, onClose }: { unificado: ContactoUnificado; o
                 {unificado.estadoCrmFecha && ` — ${fmtFecha(unificado.estadoCrmFecha)}`}
               </span>
             )}
+            {unificado.vigenciaHasta && (
+              <span className="inline-block px-1.5 py-0.5 rounded text-xs border border-[var(--color-border)] text-[var(--color-text-muted)]">
+                {/* "activo" no se apaga solo al año (no hay cron) -- la fecha manda, no el flag guardado */}
+                {unificado.vigenciaHasta >= new Date().toISOString().slice(0, 10) ? "Cliente activo hasta" : "Venció"} {fmtFecha(unificado.vigenciaHasta)}
+              </span>
+            )}
           </div>
         </div>
         <button type="button" onClick={onClose} className="text-[var(--color-brand-gray)] hover:text-[var(--color-brand-dark)]">

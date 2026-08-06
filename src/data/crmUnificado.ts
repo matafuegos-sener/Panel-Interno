@@ -46,6 +46,7 @@ export interface ContactoUnificado {
   email: string | null;
   personaContacto: string | null; // persona que atiende -- uniformado en las dos tablas (0006)
   activo: boolean | null; // null = todavía no se cargó este dato para ese contacto
+  vigenciaHasta: string | null; // matafuego vendido -- vigencia de 1 año desde `estado_crm_actualizado_en` de "pedido_entregado" (0010)
   whatsappEnviado: boolean;
   whatsappSinWa: boolean;
   mailEnviado: boolean;
@@ -71,6 +72,7 @@ export function unificarDesdeContactos(c: Contacto): ContactoUnificado {
     email: c.mail_1,
     personaContacto: c.contacto,
     activo: c.activo,
+    vigenciaHasta: c.vigencia_hasta,
     whatsappEnviado: c.whatsapp_enviado,
     whatsappSinWa: c.whatsapp_sin_wa,
     mailEnviado: c.mail_enviado,
@@ -93,6 +95,7 @@ export function unificarDesdeTracking(l: LeadBase): ContactoUnificado {
     email: l.email,
     personaContacto: l.contacto,
     activo: l.activo,
+    vigenciaHasta: l.vigencia_hasta,
     whatsappEnviado: l.whatsapp_enviado,
     whatsappSinWa: l.whatsapp_sin_wa,
     mailEnviado: l.mail_enviado,

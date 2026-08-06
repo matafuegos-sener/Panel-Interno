@@ -61,7 +61,7 @@ export async function POST(
   // tipo de interacción propio -- sale de cargar una próxima acción, salvo
   // que este tipo ya tenga un estado más específico (ej: pidió cotización).
   const ahora = new Date().toISOString();
-  const update: Record<string, string> = {};
+  const update: Record<string, string | boolean> = {};
   const categoriaNueva = TIPO_A_CATEGORIA[body.tipo];
   if (categoriaNueva) {
     update.categoria = categoriaNueva;
@@ -72,12 +72,41 @@ export async function POST(
     update.estado_crm = estadoCrmNuevo;
     update.estado_crm_actualizado_en = ahora;
   }
+
+  // Vigencia del matafuego: 1 año desde la venta (0010_vigencia_activo.sql).
+  // "activo" nunca se marca a mano -- se enciende solo acá, y el filtro
+  // Activo/Inactivo lo compara contra `vigencia_hasta` en cada consulta en
+  // vez de depender de un cron que lo apague al año (no hay cron acá). El
+  // recontacto a los 11 meses es una acción más, mismo circuito que "próxima
+  // acción" del formulario -- ya aparece sola en "Pendiente con este
+  // contacto" y en la Agenda, sin wiring nuevo.
+  let accionVigencia: AccionNueva & { contacto_id: string; tabla_origen: TablaOrigen; interaccion_id: string; registrado_por: string } | null = null;
+  if (estadoCrmNuevo === "pedido_entregado") {
+    const fechaVenta = new Date();
+    update.activo = true;
+    const vigenciaHasta = new Date(fechaVenta);
+    vigenciaHasta.setFullYear(vigenciaHasta.getFullYear() + 1);
+    update.vigencia_hasta = vigenciaHasta.toISOString().slice(0, 10);
+
+    const fechaRecontacto = new Date(fechaVenta);
+    fechaRecontacto.setMonth(fechaRecontacto.getMonth() + 11);
+    accionVigencia = {
+      contacto_id: id,
+      tabla_origen: tabla,
+      interaccion_id: nuevaInteraccion.id,
+      descripcion: "Recontactar por vencimiento de matafuego (vendido hace 11 meses) — ofrecer recarga",
+      fecha_ejecucion: fechaRecontacto.toISOString().slice(0, 10),
+      registrado_por: "Sistema",
+    };
+  }
+
   if (Object.keys(update).length > 0) {
     await supabaseAdmin.from(tabla).update(update).eq("id", id);
   }
 
-  if (validAcciones.length) {
-    const { error: errAcc } = await supabaseAdmin.from("acciones").insert(validAcciones);
+  const accionesParaInsertar = accionVigencia ? [...validAcciones, accionVigencia] : validAcciones;
+  if (accionesParaInsertar.length) {
+    const { error: errAcc } = await supabaseAdmin.from("acciones").insert(accionesParaInsertar);
     if (errAcc) {
       return NextResponse.json({ error: "La interacción se guardó, pero las acciones no: " + errAcc.message }, { status: 500 });
     }

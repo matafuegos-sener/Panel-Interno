@@ -7,6 +7,7 @@ export interface LeadBase {
   contacto: string | null;
   provincia: string | null;
   activo: boolean | null;
+  vigencia_hasta: string | null;
   ciudad: string | null;
   direccion: string | null;
   telefono: string | null;

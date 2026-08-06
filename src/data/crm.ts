@@ -14,6 +14,7 @@ export interface Contacto {
   telefono: string | null;
   mail_1: string | null;
   activo: boolean;
+  vigencia_hasta: string | null;
   tier: string | null;
   fuente: string | null;
   categoria: string;
