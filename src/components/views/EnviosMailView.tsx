@@ -12,6 +12,13 @@ import { fieldLabelClass, fieldInputClass, btnPrimaryClass, btnSecondaryClass, p
 // no estén en un <a>, y la regla de deliverability es un solo link por mail
 // (el CTA del cuerpo) -- ver CLAUDE.md, sección de email.
 const FIRMA_DEFAULT = "Matafuegos Sener — Insumos y servicios contra incendios\n+54 11 5318-0515";
+
+// Fijo, no editable: frase de opt-out sin link (nunca mailto: ni http) para
+// no sumar un segundo hipervínculo al mail -- responder "BAJA" llega como
+// mail normal a contacto@matafuegossener.com.ar (reenvía a Gmail vía
+// ImprovMX) y se da de baja a mano. Va siempre al final, después de la
+// firma -- ver CLAUDE.md global, sección de email.
+const OPT_OUT_TEXTO = "Si preferís no recibir más este tipo de mensajes, respondé este mail con la palabra BAJA y te sacamos de la lista.";
 const TAMANO_TANDA_DEFAULT = 15;
 const TAMANO_TANDA_MAX = 25;
 
@@ -99,7 +106,7 @@ export default function EnviosMailView() {
       body: JSON.stringify({
         destinatario: testMail.trim(),
         asunto: nombre ? reemplazarVariables(asunto, nombre) : asunto,
-        cuerpo: `${nombre ? reemplazarVariables(cuerpo, nombre) : cuerpo}\n\n${firma}`,
+        cuerpo: `${nombre ? reemplazarVariables(cuerpo, nombre) : cuerpo}\n\n${firma}\n\n${OPT_OUT_TEXTO}`,
       }),
     });
     const data = await res.json();
@@ -120,7 +127,7 @@ export default function EnviosMailView() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         asunto,
-        cuerpo: `${cuerpo}\n\n${firma}`,
+        cuerpo: `${cuerpo}\n\n${firma}\n\n${OPT_OUT_TEXTO}`,
         items: tanda.map((c) => ({ id: c.id, tabla: c.tabla })),
       }),
     });
