@@ -99,6 +99,21 @@ export default function CrmView() {
             {a.label}
           </button>
         ))}
+
+        <select
+          value={filtro.estadoCrm}
+          onChange={(e) => setFiltro({ ...filtro, estadoCrm: e.target.value })}
+          className={`px-4 py-2 rounded-full text-sm font-medium border bg-white transition-colors duration-200 ${
+            filtro.estadoCrm
+              ? "border-[var(--color-brand-red)] text-[var(--color-brand-red)]"
+              : "border-[var(--color-border)] text-[var(--color-brand-gray)] hover:border-[var(--color-brand-red)] hover:text-[var(--color-brand-red)]"
+          }`}
+        >
+          <option value="">Estado CRM — todos</option>
+          {Object.entries(ESTADO_CRM_LABEL).map(([valor, label]) => (
+            <option key={valor} value={valor}>{label}</option>
+          ))}
+        </select>
       </div>
 
       {cargandoLote && <p className="text-sm text-[var(--color-text-muted)] py-12 text-center">Buscando contactos…</p>}
