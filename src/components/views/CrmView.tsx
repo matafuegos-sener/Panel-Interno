@@ -33,6 +33,8 @@ export default function CrmView() {
   const [seleccionado, setSeleccionado] = useState<ContactoUnificado | null>(null);
   const [nuevoAbierto, setNuevoAbierto] = useState(false);
 
+  const columnaAtajoLabel = atajoActivo === "acciones_pendientes" ? "Próxima acción" : atajoActivo ? "Última acción" : null;
+
   // El filtro manual y los atajos son dos caminos que nunca se combinan --
   // apretar uno pisa al otro, así siempre queda claro cuál trajo el lote.
   async function traerLote() {
@@ -129,8 +131,8 @@ export default function CrmView() {
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Categoría</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Estado CRM</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Teléfono</th>
-                    {atajoActivo === "acciones_pendientes" && (
-                      <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Próxima acción</th>
+                    {columnaAtajoLabel && (
+                      <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">{columnaAtajoLabel}</th>
                     )}
                   </tr>
                 </thead>
@@ -153,7 +155,7 @@ export default function CrmView() {
                         {r.estadoCrmFecha && <span className="block text-xs">{fmtFecha(r.estadoCrmFecha)}</span>}
                       </td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.telefono || <em className="text-xs">sin dato</em>}</td>
-                      {atajoActivo === "acciones_pendientes" && (
+                      {columnaAtajoLabel && (
                         <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.fechaAtajo ? fmtFecha(r.fechaAtajo) : "—"}</td>
                       )}
                     </tr>
