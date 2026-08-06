@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { Download, MoreVertical, X } from "lucide-react";
 import { LeadBase } from "@/data/leadsBase";
 import Modal from "@/components/Modal";
-import { panelCardClass, btnPrimaryClass, btnSecondaryClass } from "@/components/formStyles";
+import { panelCardClass, btnPrimaryClass, btnSecondaryClass, fieldLabelClass, fieldInputClass } from "@/components/formStyles";
 
 const TAMANO_PAGINA = 200;
 
@@ -12,6 +12,40 @@ interface Opciones {
   rubros: string[];
   tiers: string[];
   total: number;
+}
+
+const COLUMNAS_CSV: (keyof LeadBase)[] = [
+  "nombre",
+  "rubro",
+  "tier",
+  "ciudad",
+  "direccion",
+  "telefono",
+  "whatsapp",
+  "email",
+  "website",
+  "red_social",
+  "fuente",
+  "notas",
+];
+
+function celdaCsv(valor: unknown): string {
+  const texto = valor === null || valor === undefined ? "" : String(valor);
+  if (/[",\n]/.test(texto)) return `"${texto.replace(/"/g, '""')}"`;
+  return texto;
+}
+
+function descargarCsv(filas: LeadBase[], rubro: string) {
+  const encabezado = COLUMNAS_CSV.join(",");
+  const cuerpo = filas.map((f) => COLUMNAS_CSV.map((c) => celdaCsv(f[c])).join(","));
+  const csv = [encabezado, ...cuerpo].join("\n");
+  const blob = new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `base-tracking-${rubro || "todos"}-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function BaseTrackingView() {
@@ -24,12 +58,30 @@ export default function BaseTrackingView() {
   const [cargandoLote, setCargandoLote] = useState(false);
   const [pagina, setPagina] = useState(0);
   const [seleccionado, setSeleccionado] = useState<LeadBase | null>(null);
+  const [editando, setEditando] = useState<LeadBase | null>(null);
+  const [menuAbierto, setMenuAbierto] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/leads-base/opciones")
       .then((r) => r.json())
       .then((data) => setOpciones(data?.rubros ? data : { rubros: [], tiers: [], total: 0 }));
   }, []);
+
+  function actualizarFila(actualizado: LeadBase) {
+    setResultado((prev) => prev?.map((r) => (r.id === actualizado.id ? actualizado : r)) ?? prev);
+  }
+
+  async function eliminarFila(fila: LeadBase) {
+    setMenuAbierto(null);
+    if (!window.confirm(`¿Eliminar "${fila.nombre || "este contacto"}" de la base? No se puede deshacer.`)) return;
+    const res = await fetch(`/api/admin/leads-base/${fila.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      window.alert(`Error al eliminar: ${data.error ?? res.statusText}`);
+      return;
+    }
+    setResultado((prev) => prev?.filter((r) => r.id !== fila.id) ?? prev);
+  }
 
   const lote = useMemo(() => {
     if (!resultado) return null;
@@ -90,6 +142,15 @@ export default function BaseTrackingView() {
         <button type="button" onClick={traerLote} disabled={cargandoLote} className={`${btnPrimaryClass} ml-auto`}>
           {cargandoLote ? "Cargando…" : "Cargar"}
         </button>
+        <button
+          type="button"
+          onClick={() => resultado && descargarCsv(resultado, rubro)}
+          disabled={!resultado || resultado.length === 0}
+          className={btnSecondaryClass}
+        >
+          <Download className="w-4 h-4" />
+          Descargar CSV
+        </button>
       </div>
 
       {cargandoLote && (
@@ -143,6 +204,7 @@ export default function BaseTrackingView() {
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Tier</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Teléfono</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Email</th>
+                    <th className="px-4 py-3 w-10"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -168,6 +230,40 @@ export default function BaseTrackingView() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.email || <em className="text-xs">sin dato</em>}</td>
+                      <td className="px-4 py-3 relative" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => setMenuAbierto((prev) => (prev === r.id ? null : r.id))}
+                          className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-brand-dark)] hover:bg-[var(--color-surface-subtle)]"
+                          aria-label="Más opciones"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                        {menuAbierto === r.id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setMenuAbierto(null)} />
+                            <div className="absolute right-4 top-full mt-1 z-20 w-36 bg-white border border-[var(--color-border)] rounded-lg shadow-lg overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditando(r);
+                                  setMenuAbierto(null);
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm text-[var(--color-brand-dark)] hover:bg-[var(--color-surface-subtle)]"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => eliminarFila(r)}
+                                className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -179,6 +275,19 @@ export default function BaseTrackingView() {
 
       <Modal open={seleccionado !== null} onClose={() => setSeleccionado(null)} maxWidthClass="max-w-2xl">
         {seleccionado && <LeadPanel lead={seleccionado} onClose={() => setSeleccionado(null)} />}
+      </Modal>
+
+      <Modal open={editando !== null} onClose={() => setEditando(null)} maxWidthClass="max-w-2xl">
+        {editando && (
+          <LeadEditPanel
+            lead={editando}
+            onClose={() => setEditando(null)}
+            onGuardado={(actualizado) => {
+              actualizarFila(actualizado);
+              setEditando(null);
+            }}
+          />
+        )}
       </Modal>
     </div>
   );
@@ -236,6 +345,136 @@ function LeadPanel({ lead, onClose }: { lead: LeadBase; onClose: () => void }) {
             </div>
           ))}
       </dl>
+    </div>
+  );
+}
+
+const CAMPOS_EDITABLES = [
+  "nombre",
+  "rubro",
+  "tier",
+  "ciudad",
+  "direccion",
+  "telefono",
+  "whatsapp",
+  "email",
+  "website",
+  "red_social",
+  "notas",
+] as const;
+
+type FormLead = Record<(typeof CAMPOS_EDITABLES)[number], string>;
+
+function LeadEditPanel({
+  lead,
+  onClose,
+  onGuardado,
+}: {
+  lead: LeadBase;
+  onClose: () => void;
+  onGuardado: (actualizado: LeadBase) => void;
+}) {
+  const [form, setForm] = useState<FormLead>(() =>
+    CAMPOS_EDITABLES.reduce((acc, campo) => {
+      acc[campo] = lead[campo] ?? "";
+      return acc;
+    }, {} as FormLead)
+  );
+  const [guardando, setGuardando] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  function setCampo(campo: keyof FormLead, valor: string) {
+    setForm((prev) => ({ ...prev, [campo]: valor }));
+  }
+
+  async function guardar() {
+    setGuardando(true);
+    setErrorMsg("");
+    const res = await fetch(`/api/admin/leads-base/${lead.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    const data = await res.json();
+    setGuardando(false);
+    if (!res.ok) {
+      setErrorMsg(data.error ?? "No se pudo guardar");
+      return;
+    }
+    onGuardado(data as LeadBase);
+  }
+
+  return (
+    <div className={`${panelCardClass} p-6 sm:p-8`}>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-bold text-[var(--color-brand-dark)]">Editar contacto</h2>
+        <button type="button" onClick={onClose} className="text-[var(--color-brand-gray)] hover:text-[var(--color-brand-dark)]">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <label className="sm:col-span-2">
+          <span className={fieldLabelClass}>Empresa</span>
+          <input className={fieldInputClass} value={form.nombre} onChange={(e) => setCampo("nombre", e.target.value)} />
+        </label>
+        <label>
+          <span className={fieldLabelClass}>Rubro</span>
+          <input className={fieldInputClass} value={form.rubro} onChange={(e) => setCampo("rubro", e.target.value)} />
+        </label>
+        <label>
+          <span className={fieldLabelClass}>Tier</span>
+          <input className={fieldInputClass} value={form.tier} onChange={(e) => setCampo("tier", e.target.value)} />
+        </label>
+        <label>
+          <span className={fieldLabelClass}>Teléfono</span>
+          <input className={fieldInputClass} value={form.telefono} onChange={(e) => setCampo("telefono", e.target.value)} />
+        </label>
+        <label>
+          <span className={fieldLabelClass}>¿Tiene WhatsApp?</span>
+          <select className={fieldInputClass} value={form.whatsapp} onChange={(e) => setCampo("whatsapp", e.target.value)}>
+            <option value="">Sin dato</option>
+            <option value="SI">Sí</option>
+            <option value="NO">No</option>
+            <option value="VERIFICAR">A verificar</option>
+          </select>
+        </label>
+        <label>
+          <span className={fieldLabelClass}>Email</span>
+          <input className={fieldInputClass} type="email" value={form.email} onChange={(e) => setCampo("email", e.target.value)} />
+        </label>
+        <label>
+          <span className={fieldLabelClass}>Ciudad</span>
+          <input className={fieldInputClass} value={form.ciudad} onChange={(e) => setCampo("ciudad", e.target.value)} />
+        </label>
+        <label className="sm:col-span-2">
+          <span className={fieldLabelClass}>Dirección</span>
+          <input className={fieldInputClass} value={form.direccion} onChange={(e) => setCampo("direccion", e.target.value)} />
+        </label>
+        <label>
+          <span className={fieldLabelClass}>Website</span>
+          <input className={fieldInputClass} value={form.website} onChange={(e) => setCampo("website", e.target.value)} />
+        </label>
+        <label>
+          <span className={fieldLabelClass}>Red social</span>
+          <input className={fieldInputClass} value={form.red_social} onChange={(e) => setCampo("red_social", e.target.value)} />
+        </label>
+        <label className="sm:col-span-2">
+          <span className={fieldLabelClass}>Notas</span>
+          <textarea className={`${fieldInputClass} resize-y`} rows={3} value={form.notas} onChange={(e) => setCampo("notas", e.target.value)} />
+        </label>
+      </div>
+
+      {errorMsg && <p className="text-sm text-red-600 mt-4">{errorMsg}</p>}
+
+      <div className="flex gap-3 pt-6 mt-6 border-t border-[var(--color-border-subtle)]">
+        <button type="button" onClick={guardar} disabled={guardando} className={btnPrimaryClass}>
+          {guardando ? "Guardando…" : "Guardar cambios"}
+        </button>
+        <button type="button" onClick={onClose} className={btnSecondaryClass}>
+          Cancelar
+        </button>
+      </div>
     </div>
   );
 }
