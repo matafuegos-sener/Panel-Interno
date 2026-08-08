@@ -24,3 +24,6 @@ alter table contactos add column if not exists llamada_realizada boolean not nul
 alter table contactos add column if not exists llamada_realizada_en timestamptz;
 alter table leads_base add column if not exists llamada_realizada boolean not null default false;
 alter table leads_base add column if not exists llamada_realizada_en timestamptz;
+
+alter table contactos alter column categoria set default 'prospecto_cero';
+alter table leads_base alter column categoria set default 'prospecto_cero';

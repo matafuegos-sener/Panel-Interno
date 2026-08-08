@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { TablaOrigen } from "@/data/crm";
+import { TablaOrigen, CATEGORIA_PROSPECTO_CERO } from "@/data/crm";
 
 interface ItemTanda {
   id: string;
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   // que ya dejó de ser un contacto frío).
   const itemsFrios = items
     .map((item) => ({ item, fila: mapaFilas.get(`${item.tabla}:${item.id}`) }))
-    .filter(({ item, fila }) => (item.tabla === "contactos" || item.tabla === "leads_base") && fila?.categoria === "frio");
+    .filter(({ item, fila }) => (item.tabla === "contactos" || item.tabla === "leads_base") && fila?.categoria === CATEGORIA_PROSPECTO_CERO);
 
   if (itemsFrios.length === 0) {
     return NextResponse.json({ error: "Ningún contacto frío en esta tanda -- ya se están trabajando o no son válidos" }, { status: 400 });

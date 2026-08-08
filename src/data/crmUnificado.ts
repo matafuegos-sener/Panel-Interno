@@ -50,7 +50,7 @@ export interface ContactoUnificado {
   rubro: string | null;
   tier: string | null;
   fuente: string | null; // de dónde se scrapeó -- informativo, no es un filtro central
-  categoria: string; // frio / contactado_mail / contactado_whatsapp / ... -- esto sí es el filtro real
+  categoria: string; // prospecto_cero / prospecto_interes / cliente_activo / cliente_vencido -- esto sí es el filtro real
   categoriaFecha: string | null; // cuándo se llegó a esta categoría (todos los caminos la actualizan)
   estadoCrm: string | null; // llamar_luego / presupuesto_pendiente / ... -- eje independiente, ver ESTADO_CRM_LABEL
   estadoCrmFecha: string | null;

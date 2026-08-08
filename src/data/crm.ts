@@ -99,8 +99,9 @@ export function categoriaTrasInteraccion(categoriaActual: string): string {
 // Segundo eje, independiente del anterior: en qué está el seguimiento
 // comercial del CRM (llamar luego, presupuesto pedido/enviado, pedido
 // entregado, problema). Vive en `estado_crm` (0008_estado_crm.sql), columna
-// aparte de `categoria` a propósito -- así un envío masivo (que solo toca
-// `categoria`) nunca puede pisar "presupuesto enviado" ni al revés.
+// aparte de `categoria` a propósito -- así un envío masivo (que no toca
+// ninguna de las dos columnas, solo su propio tilde de pesca) nunca puede
+// pisar "presupuesto enviado" ni al revés.
 // "llamar_luego" no sale de un tipo de interacción sino de cargar una
 // próxima acción (ver interacciones/route.ts) -- si no hay un tipo más
 // específico en esta tabla, cargar una acción es lo que marca "llamar luego".

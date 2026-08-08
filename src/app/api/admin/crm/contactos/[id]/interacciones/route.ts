@@ -56,10 +56,13 @@ export async function POST(
     }));
 
   // Dos ejes independientes, nunca se pisan entre sí (ver categoriaTrasInteraccion /
-  // TIPO_A_ESTADO_CRM en crm.ts): `categoria` es el canal de contacto,
-  // `estado_crm` es el seguimiento comercial. "llamar_luego" no tiene un
-  // tipo de interacción propio -- sale de cargar una próxima acción, salvo
-  // que este tipo ya tenga un estado más específico (ej: pidió cotización).
+  // TIPO_A_ESTADO_CRM en crm.ts): `categoria` es la etapa unificada del
+  // prospecto (prospecto_cero/prospecto_interes/cliente_activo/cliente_vencido),
+  // que cualquier interacción hace avanzar vía categoriaTrasInteraccion (nunca
+  // hace retroceder a un cliente). `estado_crm` es el seguimiento comercial,
+  // eje aparte. "llamar_luego" no tiene un tipo de interacción propio -- sale
+  // de cargar una próxima acción, salvo que este tipo ya tenga un estado más
+  // específico (ej: pidió cotización).
   const ahora = new Date().toISOString();
   const { data: filaActual, error: errFila } = await supabaseAdmin.from(tabla).select("categoria").eq("id", id).single();
   if (errFila || !filaActual) {

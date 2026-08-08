@@ -143,8 +143,8 @@ export async function POST(req: NextRequest) {
     // contacto que ya se está trabajando, sin importar lo que haya filtrado
     // el cliente (ver conversación 2026-08-05).
     if (fila.categoria !== CATEGORIA_PROSPECTO_CERO) {
-      fallidos.push({ id: item.id, tabla, motivo: "Ya no es un contacto frío" });
-      await marcarItem(item, "fallido", "Ya no es un contacto frío");
+      fallidos.push({ id: item.id, tabla, motivo: "Ya no es un Prospecto Cero" });
+      await marcarItem(item, "fallido", "Ya no es un Prospecto Cero");
       continue;
     }
 

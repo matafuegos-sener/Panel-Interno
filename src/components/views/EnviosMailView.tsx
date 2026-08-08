@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ContactoUnificado, FILTRO_VACIO, FiltroContactosState } from "@/data/crmUnificado";
+import { CATEGORIA_PROSPECTO_CERO } from "@/data/crm";
 import { MensajePredefinido } from "@/data/mensajes";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
 import { reemplazarVariables } from "@/lib/plantillas";
@@ -64,7 +65,7 @@ export default function EnviosMailView() {
   // arriba ni se muestra en esta vista por eso -- no tiene sentido ofrecer
   // una combinación que siempre da cero resultados.
   function elegiblesDe(lote: ContactoUnificado[]) {
-    return lote.filter((r) => r.email && !r.mailEnviado && r.categoria === "frio");
+    return lote.filter((r) => r.email && !r.mailEnviado && r.categoria === CATEGORIA_PROSPECTO_CERO);
   }
 
   function elegiblesActuales() {

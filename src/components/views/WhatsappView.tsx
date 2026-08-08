@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ContactoUnificado, FILTRO_VACIO, FiltroContactosState } from "@/data/crmUnificado";
+import { CATEGORIA_PROSPECTO_CERO } from "@/data/crm";
 import { MensajePredefinido } from "@/data/mensajes";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
 import FiltrosContactos from "@/components/FiltrosContactos";
@@ -37,7 +38,7 @@ export default function WhatsappView() {
   // una combinación que siempre da cero resultados.
   function elegiblesActuales() {
     if (!loteActual) return [];
-    return loteActual.filter((r) => r.telefono && !r.whatsappEnviado && !r.whatsappSinWa && r.categoria === "frio");
+    return loteActual.filter((r) => r.telefono && !r.whatsappEnviado && !r.whatsappSinWa && r.categoria === CATEGORIA_PROSPECTO_CERO);
   }
 
   const stats = useMemo(() => {
