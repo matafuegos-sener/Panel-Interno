@@ -33,6 +33,8 @@ export interface LeadBase {
   notas: string | null;
   whatsapp_enviado: boolean;
   whatsapp_enviado_en: string | null;
+  llamada_realizada: boolean;
+  llamada_realizada_en: string | null;
   whatsapp_sin_wa: boolean;
   mail_enviado: boolean;
   mail_enviado_en: string | null;
