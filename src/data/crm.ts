@@ -24,6 +24,8 @@ export interface Contacto {
   whatsapp_enviado: boolean;
   whatsapp_enviado_en: string | null;
   whatsapp_sin_wa: boolean;
+  llamada_realizada: boolean;
+  llamada_realizada_en: string | null;
   mail_enviado: boolean;
   mail_enviado_en: string | null;
   created_at: string;
@@ -71,25 +73,28 @@ export const TIPO_INTERACCION: Record<string, string> = {
 export const ACCION_OPCIONES: string[] = [
   "Llamar",
   "Enviar cotización",
-  "Enviar WhatsApp",
-  "Enviar mail",
   "Coordinar visita / instalación",
   "Entregar pedido",
   "Recontactar",
 ];
 
-// Qué categoría le queda al contacto cuando se registra una interacción de
-// este tipo (ver CATEGORIA_LABEL en crmUnificado.ts). Esto es UN solo eje:
-// por qué canal se contactó a un contacto frío (mail/WhatsApp/llamada). Los
-// envíos masivos (mail/enviar, crm/contactos/[id]/estado) también escriben
-// acá, nunca en `estado_crm` -- son la misma cosa (contacto por canal), no
-// seguimiento comercial.
-export const TIPO_A_CATEGORIA: Partial<Record<string, string>> = {
-  llamada: "contactado_llamada",
-  mail: "contactado_mail",
-  whatsapp: "contactado_whatsapp",
-  reunion: "contactado_reunion",
-};
+export const CATEGORIA_PROSPECTO_CERO = "prospecto_cero";
+export const CATEGORIA_PROSPECTO_INTERES = "prospecto_interes";
+export const CATEGORIA_CLIENTE_ACTIVO = "cliente_activo";
+export const CATEGORIA_CLIENTE_VENCIDO = "cliente_vencido";
+
+// Cualquier interacción de CRM es contacto real por un asunto puntual, sin
+// importar el canal -- eso es lo único que mueve a un prospecto de Cero a
+// Interés (acuerdo 2026-08-08). Los envíos masivos (mail/enviar,
+// crm/contactos/[id]/estado) nunca llaman a esta función: solo marcan su
+// propio tilde de pesca. Un cliente no retrocede a prospecto por registrar
+// una interacción más.
+export function categoriaTrasInteraccion(categoriaActual: string): string {
+  if (categoriaActual === CATEGORIA_CLIENTE_ACTIVO || categoriaActual === CATEGORIA_CLIENTE_VENCIDO) {
+    return categoriaActual;
+  }
+  return CATEGORIA_PROSPECTO_INTERES;
+}
 
 // Segundo eje, independiente del anterior: en qué está el seguimiento
 // comercial del CRM (llamar luego, presupuesto pedido/enviado, pedido
