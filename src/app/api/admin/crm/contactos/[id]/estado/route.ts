@@ -26,10 +26,6 @@ export async function PATCH(
   if (typeof body.whatsapp_enviado === "boolean") {
     update.whatsapp_enviado = body.whatsapp_enviado;
     update.whatsapp_enviado_en = body.whatsapp_enviado ? ahora : null;
-    if (body.whatsapp_enviado) {
-      update.categoria = "contactado_whatsapp";
-      update.categoria_actualizada_en = ahora;
-    }
   }
   if (typeof body.whatsapp_sin_wa === "boolean") {
     update.whatsapp_sin_wa = body.whatsapp_sin_wa;
@@ -37,10 +33,6 @@ export async function PATCH(
   if (typeof body.mail_enviado === "boolean") {
     update.mail_enviado = body.mail_enviado;
     update.mail_enviado_en = body.mail_enviado ? ahora : null;
-    if (body.mail_enviado) {
-      update.categoria = "contactado_mail";
-      update.categoria_actualizada_en = ahora;
-    }
   }
 
   if (Object.keys(update).length === 0) {
