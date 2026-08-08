@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { AccionNueva, TablaOrigen, TIPO_A_ESTADO_CRM, categoriaTrasInteraccion, CATEGORIA_PROSPECTO_CERO, CATEGORIA_CLIENTE_ACTIVO } from "@/data/crm";
+import { AccionNueva, TablaOrigen, TIPO_A_ESTADO_CRM, categoriaTrasInteraccion, CATEGORIA_CLIENTE_ACTIVO } from "@/data/crm";
 
 const REGISTRADO_POR = "Admin";
 
@@ -61,9 +61,12 @@ export async function POST(
   // tipo de interacción propio -- sale de cargar una próxima acción, salvo
   // que este tipo ya tenga un estado más específico (ej: pidió cotización).
   const ahora = new Date().toISOString();
-  const { data: filaActual } = await supabaseAdmin.from(tabla).select("categoria").eq("id", id).single();
+  const { data: filaActual, error: errFila } = await supabaseAdmin.from(tabla).select("categoria").eq("id", id).single();
+  if (errFila || !filaActual) {
+    return NextResponse.json({ error: "No se pudo verificar la categoría actual del contacto" }, { status: 500 });
+  }
   const update: Record<string, string | boolean> = {
-    categoria: categoriaTrasInteraccion(filaActual?.categoria ?? CATEGORIA_PROSPECTO_CERO),
+    categoria: categoriaTrasInteraccion(filaActual.categoria),
     categoria_actualizada_en: ahora,
   };
   const estadoCrmNuevo = TIPO_A_ESTADO_CRM[body.tipo] ?? (validAcciones.length ? "llamar_luego" : undefined);
