@@ -1,19 +1,31 @@
-import { TablaOrigen, Contacto } from "./crm";
+import {
+  TablaOrigen,
+  Contacto,
+  CATEGORIA_PROSPECTO_CERO,
+  CATEGORIA_PROSPECTO_INTERES,
+  CATEGORIA_CLIENTE_ACTIVO,
+  CATEGORIA_CLIENTE_VENCIDO,
+} from "./crm";
 import { LeadBase } from "./leadsBase";
 
 export type { TablaOrigen };
 
-// Categoría real de trabajo del contacto: arranca "frio" y las API routes la
-// van moviendo sola a medida que se lo toca (ver POST interacciones, PATCH
-// estado y mail/enviar) -- nunca se edita a mano. Si aparece una categoría
-// nueva que no está acá, se muestra el valor crudo.
 export const CATEGORIA_LABEL: Record<string, string> = {
-  frio: "Frío",
-  contactado_mail: "Contactado por mail",
-  contactado_whatsapp: "Contactado por WhatsApp",
-  contactado_llamada: "Contactado por llamada",
-  contactado_reunion: "Reunión hecha",
+  [CATEGORIA_PROSPECTO_CERO]: "Prospecto Cero",
+  [CATEGORIA_PROSPECTO_INTERES]: "Prospecto Interés",
+  [CATEGORIA_CLIENTE_ACTIVO]: "Cliente activo",
+  [CATEGORIA_CLIENTE_VENCIDO]: "Cliente vencido",
 };
+
+// Un cliente_activo cuya vigencia ya pasó se muestra como vencido sin
+// reescribir la base -- no hay cron en este proyecto (0010_vigencia_activo.sql).
+// Comparación de string ISO, no Date -- ver bug de timezone en CrmView.tsx.
+export function categoriaVisible(categoria: string, vigenciaHasta: string | null, hoyISO: string): string {
+  if (categoria === CATEGORIA_CLIENTE_ACTIVO && vigenciaHasta && vigenciaHasta < hoyISO) {
+    return CATEGORIA_CLIENTE_VENCIDO;
+  }
+  return categoria;
+}
 
 // Segundo eje, independiente de `categoria` -- seguimiento comercial del
 // CRM. Ver TIPO_A_ESTADO_CRM en crm.ts: nunca lo toca un envío masivo, solo
@@ -57,6 +69,7 @@ export interface ContactoUnificado {
 }
 
 export function unificarDesdeContactos(c: Contacto): ContactoUnificado {
+  const hoyISO = new Date().toISOString().slice(0, 10);
   return {
     id: c.id,
     tabla: "contactos",
@@ -64,7 +77,7 @@ export function unificarDesdeContactos(c: Contacto): ContactoUnificado {
     rubro: c.tipo_perfil,
     tier: c.tier,
     fuente: c.fuente,
-    categoria: c.categoria,
+    categoria: categoriaVisible(c.categoria, c.vigencia_hasta, hoyISO),
     categoriaFecha: c.categoria_actualizada_en,
     estadoCrm: c.estado_crm,
     estadoCrmFecha: c.estado_crm_actualizado_en,
@@ -80,6 +93,7 @@ export function unificarDesdeContactos(c: Contacto): ContactoUnificado {
 }
 
 export function unificarDesdeTracking(l: LeadBase): ContactoUnificado {
+  const hoyISO = new Date().toISOString().slice(0, 10);
   return {
     id: l.id,
     tabla: "leads_base",
@@ -87,7 +101,7 @@ export function unificarDesdeTracking(l: LeadBase): ContactoUnificado {
     rubro: l.rubro,
     tier: l.tier,
     fuente: l.fuente,
-    categoria: l.categoria,
+    categoria: categoriaVisible(l.categoria, l.vigencia_hasta, hoyISO),
     categoriaFecha: l.categoria_actualizada_en,
     estadoCrm: l.estado_crm,
     estadoCrmFecha: l.estado_crm_actualizado_en,
