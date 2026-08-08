@@ -3,7 +3,7 @@ import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { enviarMail } from "@/lib/resend";
 import { reemplazarVariables, textoAHtml, textoAPlano } from "@/lib/plantillas";
-import { TablaOrigen } from "@/data/crm";
+import { TablaOrigen, CATEGORIA_PROSPECTO_CERO } from "@/data/crm";
 
 interface ItemTanda {
   id: string;
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
     // Resguardo del lado del servidor -- nunca mandar un mail masivo a un
     // contacto que ya se está trabajando, sin importar lo que haya filtrado
     // el cliente (ver conversación 2026-08-05).
-    if (fila.categoria !== "frio") {
+    if (fila.categoria !== CATEGORIA_PROSPECTO_CERO) {
       fallidos.push({ id: item.id, tabla, motivo: "Ya no es un contacto frío" });
       await marcarItem(item, "fallido", "Ya no es un contacto frío");
       continue;
@@ -169,8 +169,6 @@ export async function POST(req: NextRequest) {
       .update({
         mail_enviado: true,
         mail_enviado_en: ahoraEnvio,
-        categoria: "contactado_mail",
-        categoria_actualizada_en: ahoraEnvio,
       })
       .eq("id", item.id);
     enviados.push({ id: item.id, tabla });
