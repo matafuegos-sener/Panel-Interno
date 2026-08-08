@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { AccionNueva, TablaOrigen, TIPO_A_CATEGORIA, TIPO_A_ESTADO_CRM } from "@/data/crm";
+import { AccionNueva, TablaOrigen, TIPO_A_ESTADO_CRM, categoriaTrasInteraccion, CATEGORIA_PROSPECTO_CERO, CATEGORIA_CLIENTE_ACTIVO } from "@/data/crm";
 
 const REGISTRADO_POR = "Admin";
 
@@ -55,18 +55,17 @@ export async function POST(
       registrado_por: REGISTRADO_POR,
     }));
 
-  // Dos ejes independientes, nunca se pisan entre sí (ver TIPO_A_CATEGORIA /
+  // Dos ejes independientes, nunca se pisan entre sí (ver categoriaTrasInteraccion /
   // TIPO_A_ESTADO_CRM en crm.ts): `categoria` es el canal de contacto,
   // `estado_crm` es el seguimiento comercial. "llamar_luego" no tiene un
   // tipo de interacción propio -- sale de cargar una próxima acción, salvo
   // que este tipo ya tenga un estado más específico (ej: pidió cotización).
   const ahora = new Date().toISOString();
-  const update: Record<string, string | boolean> = {};
-  const categoriaNueva = TIPO_A_CATEGORIA[body.tipo];
-  if (categoriaNueva) {
-    update.categoria = categoriaNueva;
-    update.categoria_actualizada_en = ahora;
-  }
+  const { data: filaActual } = await supabaseAdmin.from(tabla).select("categoria").eq("id", id).single();
+  const update: Record<string, string | boolean> = {
+    categoria: categoriaTrasInteraccion(filaActual?.categoria ?? CATEGORIA_PROSPECTO_CERO),
+    categoria_actualizada_en: ahora,
+  };
   const estadoCrmNuevo = TIPO_A_ESTADO_CRM[body.tipo] ?? (validAcciones.length ? "llamar_luego" : undefined);
   if (estadoCrmNuevo) {
     update.estado_crm = estadoCrmNuevo;
@@ -84,6 +83,7 @@ export async function POST(
   if (estadoCrmNuevo === "pedido_entregado") {
     const fechaVenta = new Date();
     update.activo = true;
+    update.categoria = CATEGORIA_CLIENTE_ACTIVO;
     const vigenciaHasta = new Date(fechaVenta);
     vigenciaHasta.setFullYear(vigenciaHasta.getFullYear() + 1);
     update.vigencia_hasta = vigenciaHasta.toISOString().slice(0, 10);
