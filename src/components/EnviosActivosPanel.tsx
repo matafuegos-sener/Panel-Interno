@@ -107,7 +107,15 @@ export default function EnviosActivosPanel({
         const detalle = detalles[t.id];
         return (
           <div key={t.id} className={panelCardClass}>
-            <button type="button" onClick={() => toggle(t.id)} className="w-full text-left p-3 flex items-center justify-between gap-3">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => toggle(t.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") toggle(t.id);
+              }}
+              className="w-full text-left p-3 flex items-center justify-between gap-3 cursor-pointer"
+            >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                   <span className="text-sm font-medium text-[var(--color-brand-dark)]">{TIPO_LABEL[t.tipo]}</span>
@@ -157,7 +165,7 @@ export default function EnviosActivosPanel({
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
-            </button>
+            </div>
             {expandido && (
               <div className="border-t border-[var(--color-border-subtle)] p-3">
                 {!detalle && <p className="text-xs text-[var(--color-text-muted)]">Cargando detalle…</p>}
