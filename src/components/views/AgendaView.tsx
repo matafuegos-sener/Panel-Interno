@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Bell, CalendarClock, CheckSquare, Phone, RefreshCw, Users } from "lucide-react";
 import { EventoAgenda, TIPO_AGENDA_LABEL, TipoAgendaManual } from "@/data/agenda";
 import { Contacto } from "@/data/crm";
 import { LeadBase } from "@/data/leadsBase";
@@ -46,9 +47,23 @@ function esHoy(d: Date) {
   return isoDate(d) === isoDate(new Date());
 }
 
+const ICONO_TIPO: Record<string, typeof Phone> = {
+  llamada: Phone,
+  reunion: Users,
+  tarea: CheckSquare,
+  recordatorio: Bell,
+  seguimiento: RefreshCw,
+};
+
+function IconoTipo({ tipo, size = 12 }: { tipo: string; size?: number }) {
+  const Icono = ICONO_TIPO[tipo] ?? CalendarClock;
+  return <Icono size={size} strokeWidth={2.25} className="shrink-0" />;
+}
+
 function badgeTipo(tipo: string) {
   return (
-    <span className="text-xs px-1.5 py-0.5 rounded border border-[var(--color-border)] text-[var(--color-text-muted)]">
+    <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-[var(--color-border)] text-[var(--color-text-muted)]">
+      <IconoTipo tipo={tipo} />
       {TIPO_AGENDA_LABEL[tipo] ?? tipo}
     </span>
   );
@@ -113,6 +128,18 @@ export default function AgendaView() {
     });
     setDatos((prev) => prev && { ...prev, eventos: prev.eventos.map((e) => (e.id === ev.id && e.origen === ev.origen ? { ...e, completada } : e)) });
     setDetalle((prev) => (prev && prev.id === ev.id ? { ...prev, completada } : prev));
+  }
+
+  async function eliminarEvento(ev: EventoAgenda) {
+    if (!window.confirm("¿Eliminar esta actividad de la agenda?")) return;
+    const res = await fetch(`/api/admin/agenda/${ev.id}?origen=${ev.origen}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      window.alert(`Error: ${data.error ?? res.statusText}`);
+      return;
+    }
+    setDatos((prev) => prev && { ...prev, eventos: prev.eventos.filter((e) => !(e.id === ev.id && e.origen === ev.origen)) });
+    setDetalle((prev) => (prev && prev.id === ev.id && prev.origen === ev.origen ? null : prev));
   }
 
   function labelRango(): string {
@@ -236,7 +263,14 @@ export default function AgendaView() {
       </Modal>
 
       <Modal open={detalle !== null} onClose={() => setDetalle(null)}>
-        {detalle && <PanelDetalle evento={detalle} onCompletar={(v) => marcarCompletada(detalle, v)} onClose={() => setDetalle(null)} />}
+        {detalle && (
+          <PanelDetalle
+            evento={detalle}
+            onCompletar={(v) => marcarCompletada(detalle, v)}
+            onEliminar={() => eliminarEvento(detalle)}
+            onClose={() => setDetalle(null)}
+          />
+        )}
       </Modal>
     </div>
   );
@@ -268,7 +302,7 @@ function FilaEvento({
           <span className="text-xs font-medium text-[var(--color-brand-dark)]">{ev.hora ? ev.hora.slice(0, 5) : "Todo el día"}</span>
           {badgeTipo(ev.tipo)}
         </div>
-        <p className="text-sm text-[var(--color-brand-dark)]">{ev.nota}</p>
+        <p className="text-sm text-[var(--color-brand-dark)] line-clamp-2">{ev.nota}</p>
         {ev.contactoNombre && <p className="text-xs text-[var(--color-text-muted)]">{ev.contactoNombre}</p>}
       </button>
     </div>
@@ -326,13 +360,20 @@ function VistaSemana({
                   key={`${ev.origen}-${ev.id}`}
                   type="button"
                   onClick={() => onAbrir(ev)}
-                  className={`text-left text-xs p-2 rounded-lg border transition-colors ${
+                  className={`text-left text-xs p-2 rounded-lg border transition-colors flex flex-col gap-0.5 ${
                     ev.completada
                       ? "bg-green-50 border-green-200"
                       : "bg-[var(--color-bg-warm)] border-[var(--color-border-subtle)] hover:border-[var(--color-brand-red)]"
                   }`}
                 >
-                  <span className="font-medium">{ev.hora ? ev.hora.slice(0, 5) : "Todo el día"}</span> — {ev.nota}
+                  <span className="flex items-center gap-1 font-medium text-[var(--color-brand-dark)]">
+                    <IconoTipo tipo={ev.tipo} />
+                    <span className="truncate">{TIPO_AGENDA_LABEL[ev.tipo] ?? ev.tipo}</span>
+                    <span className="ml-auto shrink-0 text-[10px] font-normal text-[var(--color-text-muted)]">
+                      {ev.hora ? ev.hora.slice(0, 5) : "Todo el día"}
+                    </span>
+                  </span>
+                  <span className="line-clamp-2 text-[var(--color-text-muted)]">{ev.nota}</span>
                 </button>
               ))}
             </div>
@@ -588,10 +629,12 @@ function PanelNuevaActividad({
 function PanelDetalle({
   evento,
   onCompletar,
+  onEliminar,
   onClose,
 }: {
   evento: EventoAgenda;
   onCompletar: (v: boolean) => void;
+  onEliminar: () => void;
   onClose: () => void;
 }) {
   const [contacto, setContacto] = useState<ContactoUnificado | null>(null);
@@ -651,9 +694,18 @@ function PanelDetalle({
       <Modal open={contacto !== null} onClose={() => setContacto(null)} maxWidthClass="max-w-2xl">
         {contacto && <ContactoPanelCompleto unificado={contacto} onClose={() => setContacto(null)} />}
       </Modal>
-      <button type="button" onClick={onClose} className={`${btnSecondaryClass} mt-6`}>
-        Cerrar
-      </button>
+      <div className="flex gap-3 mt-6">
+        <button type="button" onClick={onClose} className={btnSecondaryClass}>
+          Cerrar
+        </button>
+        <button
+          type="button"
+          onClick={onEliminar}
+          className="px-4 py-2 text-sm rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+        >
+          Eliminar
+        </button>
+      </div>
     </div>
   );
 }

@@ -22,3 +22,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await isAdminAuthed())) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const origen = req.nextUrl.searchParams.get("origen");
+  if (origen !== "accion" && origen !== "manual") {
+    return NextResponse.json({ error: "Formato inválido" }, { status: 400 });
+  }
+
+  const tabla = origen === "accion" ? "acciones" : "agenda_eventos";
+  const { error } = await supabaseAdmin.from(tabla).delete().eq("id", id);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true });
+}
