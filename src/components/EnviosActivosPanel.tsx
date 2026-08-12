@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { DetalleTanda, ItemTandaEnvio, TandaEnvio } from "@/data/tandas";
 import { useTandasEnvio } from "@/lib/useTandasEnvio";
 import { panelCardClass } from "@/components/formStyles";
@@ -48,6 +49,8 @@ export default function EnviosActivosPanel({
   const tandas = useTandasEnvio();
   const [expandidoId, setExpandidoId] = useState<string | null>(null);
   const [detalles, setDetalles] = useState<Record<string, DetalleTanda>>({});
+  const [eliminadasIds, setEliminadasIds] = useState<Set<string>>(new Set());
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
 
   async function toggle(id: string) {
     const abriendo = expandidoId !== id;
@@ -59,11 +62,28 @@ export default function EnviosActivosPanel({
     }
   }
 
+  async function eliminarTanda(t: TandaEnvio, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!window.confirm(`¿Eliminar esta tanda de ${TIPO_LABEL[t.tipo]}? No se puede deshacer.`)) return;
+    setEliminandoId(t.id);
+    const res = await fetch(`/api/admin/envios/${t.id}`, { method: "DELETE" });
+    setEliminandoId(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      window.alert(`Error al eliminar: ${data.error ?? res.statusText}`);
+      return;
+    }
+    setEliminadasIds((prev) => new Set(prev).add(t.id));
+    if (expandidoId === t.id) setExpandidoId(null);
+  }
+
   if (tandas === null) {
     return <p className="text-sm text-[var(--color-text-muted)]">Cargando…</p>;
   }
 
-  const filtrados = tandas.filter((t) => (tipo ? t.tipo === tipo : true) && (estado ? t.estado === estado : true));
+  const filtrados = tandas.filter(
+    (t) => (tipo ? t.tipo === tipo : true) && (estado ? t.estado === estado : true) && !eliminadasIds.has(t.id)
+  );
   const ordenados = [...filtrados].sort((a, b) => {
     if (a.estado !== b.estado) return a.estado === "en_curso" ? -1 : 1;
     return b.creadoEn.localeCompare(a.creadoEn);
@@ -113,6 +133,16 @@ export default function EnviosActivosPanel({
                 >
                   {t.estado === "en_curso" ? `${resueltos}/${t.total}` : "Completado"}
                 </span>
+                <button
+                  type="button"
+                  onClick={(e) => eliminarTanda(t, e)}
+                  disabled={eliminandoId === t.id}
+                  className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  aria-label="Eliminar tanda"
+                  title="Eliminar tanda"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </button>
             {expandido && (

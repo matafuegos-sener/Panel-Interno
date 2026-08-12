@@ -63,3 +63,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const respuesta: DetalleTanda = { tanda: tandaResp, items: itemsResp };
   return NextResponse.json(respuesta, { headers: { "Cache-Control": "no-store" } });
 }
+
+// Borra una tanda (mail o WhatsApp) y sus items -- tandas_envio_items tiene
+// "on delete cascade" hacia tandas_envio (ver 0007_agenda_y_tandas.sql), así
+// que basta con borrar la tanda.
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await isAdminAuthed())) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const { error } = await supabaseAdmin.from("tandas_envio").delete().eq("id", id);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true });
+}

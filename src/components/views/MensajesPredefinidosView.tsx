@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { Canal, MensajePredefinido, MensajeInput } from "@/data/mensajes";
 import Modal from "@/components/Modal";
 import { fieldLabelClass, fieldInputClass, btnPrimaryClass, btnSecondaryClass, panelCardClass } from "@/components/formStyles";
@@ -18,6 +18,7 @@ interface Props {
 export default function MensajesPredefinidosView({ canal }: Props) {
   const [mensajes, setMensajes] = useState<MensajePredefinido[] | null>(null);
   const [editando, setEditando] = useState<MensajePredefinido | "nuevo" | null>(null);
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/admin/mensajes?canal=${canal}`)
@@ -31,6 +32,20 @@ export default function MensajesPredefinidosView({ canal }: Props) {
       return esNuevo ? [...prev, mensaje] : prev.map((m) => (m.id === mensaje.id ? mensaje : m));
     });
     setEditando(null);
+  }
+
+  async function eliminarMensaje(m: MensajePredefinido, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!window.confirm(`¿Eliminar "${m.titulo}"? No se puede deshacer.`)) return;
+    setEliminandoId(m.id);
+    const res = await fetch(`/api/admin/mensajes/${m.id}`, { method: "DELETE" });
+    setEliminandoId(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      window.alert(`Error al eliminar: ${data.error ?? res.statusText}`);
+      return;
+    }
+    setMensajes((prev) => prev?.filter((x) => x.id !== m.id) ?? prev);
   }
 
   return (
@@ -63,6 +78,7 @@ export default function MensajesPredefinidosView({ canal }: Props) {
                 <tr className="bg-[var(--color-surface-subtle)] border-b border-[var(--color-border)]">
                   <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Rubro</th>
                   <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Título</th>
+                  <th className="px-4 py-3 w-10" />
                 </tr>
               </thead>
               <tbody>
@@ -78,6 +94,18 @@ export default function MensajesPredefinidosView({ canal }: Props) {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-[var(--color-brand-dark)] max-w-[480px] truncate">{m.titulo}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={(e) => eliminarMensaje(m, e)}
+                        disabled={eliminandoId === m.id}
+                        className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        aria-label="Eliminar mensaje"
+                        title="Eliminar mensaje"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
