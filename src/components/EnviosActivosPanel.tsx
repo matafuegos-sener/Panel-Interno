@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { PlayCircle, Trash2 } from "lucide-react";
 import { DetalleTanda, ItemTandaEnvio, TandaEnvio } from "@/data/tandas";
 import { useTandasEnvio } from "@/lib/useTandasEnvio";
 import { panelCardClass } from "@/components/formStyles";
@@ -133,6 +133,19 @@ export default function EnviosActivosPanel({
                 >
                   {t.estado === "en_curso" ? `${resueltos}/${t.total}` : "Completado"}
                 </span>
+                {t.tipo === "whatsapp" && t.estado === "en_curso" && (
+                  <a
+                    href={`/whatsapp-tanda?tandaId=${t.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-brand-red)] hover:bg-[var(--color-surface-subtle)]"
+                    aria-label="Reanudar tanda"
+                    title="Reanudar tanda"
+                  >
+                    <PlayCircle className="w-4 h-4" />
+                  </a>
+                )}
                 <button
                   type="button"
                   onClick={(e) => eliminarTanda(t, e)}
