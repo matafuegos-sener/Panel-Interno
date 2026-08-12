@@ -3,8 +3,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { Download, MoreVertical, X } from "lucide-react";
 import { LeadBase } from "@/data/leadsBase";
+import { CATEGORIA_LABEL, ESTADO_CRM_LABEL } from "@/data/crmUnificado";
 import Modal from "@/components/Modal";
+import EnvioBadgesBase from "@/components/EnvioBadges";
+import { fmtFecha } from "@/lib/fechas";
 import { panelCardClass, btnPrimaryClass, btnSecondaryClass, fieldLabelClass, fieldInputClass } from "@/components/formStyles";
+
+// Wrapper fino sobre EnvioBadges (componente compartido con CrmView.tsx) --
+// acá se trabaja sobre `LeadBase` directo, no sobre `ContactoUnificado`
+// (BaseTrackingView no pasa por el hook unificado).
+function EnvioBadges({ lead }: { lead: LeadBase }) {
+  return (
+    <EnvioBadgesBase
+      mailEnviado={lead.mail_enviado}
+      mailEnviadoEn={lead.mail_enviado_en}
+      whatsappEnviado={lead.whatsapp_enviado}
+      whatsappEnviadoEn={lead.whatsapp_enviado_en}
+      whatsappSinWa={lead.whatsapp_sin_wa}
+      llamadaRealizada={lead.llamada_realizada}
+      llamadaRealizadaEn={lead.llamada_realizada_en}
+    />
+  );
+}
 
 const TAMANO_PAGINA = 200;
 
@@ -53,6 +73,9 @@ export default function BaseTrackingView() {
   const [rubro, setRubro] = useState("");
   const [tier, setTier] = useState("");
   const [medio, setMedio] = useState("");
+  const [mailEnviado, setMailEnviado] = useState("");
+  const [whatsappEnviado, setWhatsappEnviado] = useState("");
+  const [llamadaRealizada, setLlamadaRealizada] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [resultado, setResultado] = useState<LeadBase[] | null>(null);
   const [cargandoLote, setCargandoLote] = useState(false);
@@ -88,12 +111,25 @@ export default function BaseTrackingView() {
     return resultado.slice(pagina * TAMANO_PAGINA, (pagina + 1) * TAMANO_PAGINA);
   }, [resultado, pagina]);
 
+  function limpiarFiltro() {
+    setRubro("");
+    setTier("");
+    setMedio("");
+    setMailEnviado("");
+    setWhatsappEnviado("");
+    setLlamadaRealizada("");
+    setBusqueda("");
+  }
+
   async function traerLote() {
     setCargandoLote(true);
     const params = new URLSearchParams();
     if (rubro) params.set("rubro", rubro);
     if (tier) params.set("tier", tier);
     if (medio) params.set("medio", medio);
+    if (mailEnviado) params.set("mail_enviado", mailEnviado);
+    if (whatsappEnviado) params.set("whatsapp_enviado", whatsappEnviado);
+    if (llamadaRealizada) params.set("llamada_realizada", llamadaRealizada);
     if (busqueda.trim()) params.set("busqueda", busqueda.trim());
 
     const res = await fetch(`/api/admin/leads-base?${params.toString()}`);
@@ -113,44 +149,74 @@ export default function BaseTrackingView() {
         </p>
       </div>
 
-      <div className={`${panelCardClass} p-4 flex flex-wrap items-center gap-2 mb-6`}>
-        <select className={selectClass} value={rubro} onChange={(e) => setRubro(e.target.value)}>
-          <option value="">Rubro — todos</option>
-          {opciones?.rubros.map((r) => (
-            <option key={r} value={r}>{r}</option>
-          ))}
-        </select>
-        <select className={selectClass} value={tier} onChange={(e) => setTier(e.target.value)}>
-          <option value="">Tier — todos</option>
-          {opciones?.tiers.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-        <select className={selectClass} value={medio} onChange={(e) => setMedio(e.target.value)}>
-          <option value="">Medio de contacto — todos</option>
-          <option value="telefono">Teléfono</option>
-          <option value="email">Email</option>
-        </select>
-        <input
-          className={`${selectClass} flex-1 min-w-[160px]`}
-          type="search"
-          placeholder="Buscar empresa…"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && traerLote()}
-        />
-        <button type="button" onClick={traerLote} disabled={cargandoLote} className={`${btnPrimaryClass} ml-auto`}>
-          {cargandoLote ? "Cargando…" : "Cargar"}
-        </button>
-        <button
-          type="button"
-          onClick={() => resultado && descargarCsv(resultado, rubro)}
-          disabled={!resultado || resultado.length === 0}
-          className={btnSecondaryClass}
-        >
-          <Download className="w-4 h-4" />
-          Descargar CSV
-        </button>
+      <div className={`${panelCardClass} p-4 flex flex-col gap-2 mb-6`}>
+        {/* Renglón 1: filtros de siempre + búsqueda, "Cargar" y "Descargar CSV" al final. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <select className={selectClass} value={rubro} onChange={(e) => setRubro(e.target.value)}>
+            <option value="">Rubro — todos</option>
+            {opciones?.rubros.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+          <select className={selectClass} value={tier} onChange={(e) => setTier(e.target.value)}>
+            <option value="">Tier — todos</option>
+            {opciones?.tiers.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          <select className={selectClass} value={medio} onChange={(e) => setMedio(e.target.value)}>
+            <option value="">Medio de contacto — todos</option>
+            <option value="telefono">Teléfono</option>
+            <option value="email">Email</option>
+          </select>
+          <input
+            className={`${selectClass} flex-1 min-w-[160px]`}
+            type="search"
+            placeholder="Buscar empresa…"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && traerLote()}
+          />
+          <button type="button" onClick={traerLote} disabled={cargandoLote} className={`${btnPrimaryClass} ml-auto`}>
+            {cargandoLote ? "Cargando…" : "Cargar"}
+          </button>
+          <button
+            type="button"
+            onClick={() => resultado && descargarCsv(resultado, rubro)}
+            disabled={!resultado || resultado.length === 0}
+            className={btnSecondaryClass}
+          >
+            <Download className="w-4 h-4" />
+            Descargar CSV
+          </button>
+        </div>
+
+        {/* Renglón 2: los 3 filtros de envío, "Limpiar filtro" debajo de "Cargar". */}
+        <div className="flex flex-wrap items-center gap-2">
+          <select className={selectClass} value={mailEnviado} onChange={(e) => setMailEnviado(e.target.value)}>
+            <option value="">Mail — todos</option>
+            <option value="si">Mail enviado</option>
+            <option value="no">Mail no enviado</option>
+          </select>
+          <select className={selectClass} value={whatsappEnviado} onChange={(e) => setWhatsappEnviado(e.target.value)}>
+            <option value="">WhatsApp — todos</option>
+            <option value="si">WhatsApp enviado</option>
+            <option value="no">WhatsApp no enviado</option>
+          </select>
+          <select
+            className={selectClass}
+            value={llamadaRealizada}
+            onChange={(e) => setLlamadaRealizada(e.target.value)}
+            title="Todavía no hay ninguna pantalla que marque una llamada como realizada"
+          >
+            <option value="">Llamada — todas</option>
+            <option value="si">Llamada realizada</option>
+            <option value="no">Llamada no realizada</option>
+          </select>
+          <button type="button" onClick={limpiarFiltro} className={`${btnSecondaryClass} ml-auto`}>
+            Limpiar filtro
+          </button>
+        </div>
       </div>
 
       {cargandoLote && (
@@ -202,6 +268,8 @@ export default function BaseTrackingView() {
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Empresa</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Rubro</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Tier</th>
+                    <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Categoría</th>
+                    <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Mail / WhatsApp</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Teléfono</th>
                     <th className="text-left px-4 py-3 type-label text-[var(--color-text-muted)]">Email</th>
                     <th className="px-4 py-3 w-10"></th>
@@ -217,6 +285,13 @@ export default function BaseTrackingView() {
                       <td className="px-4 py-3 font-medium text-[var(--color-brand-dark)]">{r.nombre || <em className="text-xs">sin dato</em>}</td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.rubro || "—"}</td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.tier || "—"}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-muted)]">
+                        {CATEGORIA_LABEL[r.categoria] ?? r.categoria}
+                        {r.categoria_actualizada_en && <span className="block text-xs">{fmtFecha(r.categoria_actualizada_en)}</span>}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--color-text-muted)]">
+                        <EnvioBadges lead={r} />
+                      </td>
                       <td className="px-4 py-3 text-[var(--color-text-muted)]">
                         {r.telefono ? (
                           <>
@@ -300,6 +375,10 @@ const WHATSAPP_LABEL: Record<string, string> = { SI: "Sí", NO: "No", VERIFICAR:
 
 function LeadPanel({ lead, onClose }: { lead: LeadBase; onClose: () => void }) {
   const campos: [string, string | number | null][] = [
+    ["Categoría", `${CATEGORIA_LABEL[lead.categoria] ?? lead.categoria}${lead.categoria_actualizada_en ? ` — ${fmtFecha(lead.categoria_actualizada_en)}` : ""}`],
+    ["Estado CRM", lead.estado_crm ? `${ESTADO_CRM_LABEL[lead.estado_crm] ?? lead.estado_crm}${lead.estado_crm_actualizado_en ? ` — ${fmtFecha(lead.estado_crm_actualizado_en)}` : ""}` : null],
+    ["Mail enviado", lead.mail_enviado ? (lead.mail_enviado_en ? fmtFecha(lead.mail_enviado_en) : "Sí") : null],
+    ["WhatsApp enviado", lead.whatsapp_enviado ? (lead.whatsapp_enviado_en ? fmtFecha(lead.whatsapp_enviado_en) : "Sí") : lead.whatsapp_sin_wa ? "Sin WhatsApp" : null],
     ["Rubro", lead.rubro],
     ["Ciudad", lead.ciudad],
     ["Dirección", lead.direccion],

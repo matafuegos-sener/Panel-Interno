@@ -60,8 +60,15 @@ export interface ContactoUnificado {
   activo: boolean | null; // null = todavía no se cargó este dato para ese contacto
   vigenciaHasta: string | null; // matafuego vendido -- vigencia de 1 año desde `estado_crm_actualizado_en` de "pedido_entregado" (0010)
   whatsappEnviado: boolean;
+  whatsappEnviadoEn: string | null;
   whatsappSinWa: boolean;
   mailEnviado: boolean;
+  mailEnviadoEn: string | null;
+  // Sin consumidor todavía -- no hay ninguna pantalla que marque una llamada
+  // como hecha (0011_etapa_prospecto.sql la agregó vacía, a propósito). El
+  // badge/filtro existen para cuando se construya ese flujo.
+  llamadaRealizada: boolean;
+  llamadaRealizadaEn: string | null;
   // Solo viene poblado cuando el lote sale de un atajo (ver AtajoCrm más
   // abajo) -- la fecha de la interacción o de la acción que lo trajo, para
   // poder mostrarla en la tabla. En el filtro manual siempre es undefined.
@@ -87,8 +94,12 @@ export function unificarDesdeContactos(c: Contacto): ContactoUnificado {
     activo: c.activo,
     vigenciaHasta: c.vigencia_hasta,
     whatsappEnviado: c.whatsapp_enviado,
+    whatsappEnviadoEn: c.whatsapp_enviado_en,
     whatsappSinWa: c.whatsapp_sin_wa,
     mailEnviado: c.mail_enviado,
+    mailEnviadoEn: c.mail_enviado_en,
+    llamadaRealizada: c.llamada_realizada,
+    llamadaRealizadaEn: c.llamada_realizada_en,
   };
 }
 
@@ -111,8 +122,12 @@ export function unificarDesdeTracking(l: LeadBase): ContactoUnificado {
     activo: l.activo,
     vigenciaHasta: l.vigencia_hasta,
     whatsappEnviado: l.whatsapp_enviado,
+    whatsappEnviadoEn: l.whatsapp_enviado_en,
     whatsappSinWa: l.whatsapp_sin_wa,
     mailEnviado: l.mail_enviado,
+    mailEnviadoEn: l.mail_enviado_en,
+    llamadaRealizada: l.llamada_realizada,
+    llamadaRealizadaEn: l.llamada_realizada_en,
   };
 }
 
@@ -126,7 +141,20 @@ export interface FiltroContactosState {
   rubros: string[];
   tier: string;
   activo: "" | "si" | "no";
+  mailEnviado: "" | "si" | "no";
+  whatsappEnviado: "" | "si" | "no";
+  llamadaRealizada: "" | "si" | "no";
   busqueda: string;
 }
 
-export const FILTRO_VACIO: FiltroContactosState = { categoria: "", estadoCrm: "", rubros: [], tier: "", activo: "", busqueda: "" };
+export const FILTRO_VACIO: FiltroContactosState = {
+  categoria: "",
+  estadoCrm: "",
+  rubros: [],
+  tier: "",
+  activo: "",
+  mailEnviado: "",
+  whatsappEnviado: "",
+  llamadaRealizada: "",
+  busqueda: "",
+};

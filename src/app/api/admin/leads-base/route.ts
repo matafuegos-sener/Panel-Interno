@@ -17,6 +17,9 @@ export async function GET(req: NextRequest) {
   const rubro = searchParams.get("rubro") || "";
   const tier = searchParams.get("tier") || "";
   const medio = searchParams.get("medio") || "";
+  const mailEnviado = searchParams.get("mail_enviado") || "";
+  const whatsappEnviado = searchParams.get("whatsapp_enviado") || "";
+  const llamadaRealizada = searchParams.get("llamada_realizada") || "";
   const busqueda = searchParams.get("busqueda")?.trim() || "";
 
   // select("*") a propósito, no una lista fija de columnas: este endpoint lo
@@ -35,6 +38,9 @@ export async function GET(req: NextRequest) {
     if (tier) query = query.eq("tier", tier);
     if (medio === "telefono") query = query.not("telefono", "is", null);
     if (medio === "email") query = query.not("email", "is", null);
+    if (mailEnviado) query = query.eq("mail_enviado", mailEnviado === "si");
+    if (whatsappEnviado) query = query.eq("whatsapp_enviado", whatsappEnviado === "si");
+    if (llamadaRealizada) query = query.eq("llamada_realizada", llamadaRealizada === "si");
     if (busqueda) query = query.ilike("nombre", `%${busqueda}%`);
 
     const { data, error } = await query;

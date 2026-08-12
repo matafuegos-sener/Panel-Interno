@@ -44,6 +44,9 @@ export async function GET(req: NextRequest) {
   const rubros = searchParams.get("rubros")?.split(",").filter(Boolean) ?? [];
   const tier = searchParams.get("tier") || "";
   const activo = searchParams.get("activo") || "";
+  const mailEnviado = searchParams.get("mail_enviado") || "";
+  const whatsappEnviado = searchParams.get("whatsapp_enviado") || "";
+  const llamadaRealizada = searchParams.get("llamada_realizada") || "";
   const busqueda = searchParams.get("busqueda")?.trim() || "";
   // "activo" ya no es solo el flag guardado -- un contacto vendido
   // (0010_vigencia_activo.sql) deja de ser activo solo cuando pasa
@@ -63,6 +66,9 @@ export async function GET(req: NextRequest) {
     // marca solo, y un contacto vendido hace más de un año vuelve a ser
     // inactivo aunque el flag siga en true.
     if (activo === "no") query = query.or(`activo.eq.false,activo.is.null,vigencia_hasta.lt.${hoy}`);
+    if (mailEnviado) query = query.eq("mail_enviado", mailEnviado === "si");
+    if (whatsappEnviado) query = query.eq("whatsapp_enviado", whatsappEnviado === "si");
+    if (llamadaRealizada) query = query.eq("llamada_realizada", llamadaRealizada === "si");
     if (busqueda) query = query.or(`razon_social.ilike.%${busqueda}%,nombre_comercial.ilike.%${busqueda}%`);
 
     const { data, error } = await query;
@@ -82,6 +88,9 @@ export async function GET(req: NextRequest) {
     if (tier) query = query.eq("tier", tier);
     if (activo === "si") query = query.eq("activo", true).or(`vigencia_hasta.is.null,vigencia_hasta.gte.${hoy}`);
     if (activo === "no") query = query.or(`activo.eq.false,activo.is.null,vigencia_hasta.lt.${hoy}`);
+    if (mailEnviado) query = query.eq("mail_enviado", mailEnviado === "si");
+    if (whatsappEnviado) query = query.eq("whatsapp_enviado", whatsappEnviado === "si");
+    if (llamadaRealizada) query = query.eq("llamada_realizada", llamadaRealizada === "si");
     if (busqueda) query = query.ilike("nombre", `%${busqueda}%`);
 
     const { data, error } = await query;

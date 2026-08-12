@@ -2,10 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { EventoAgenda, TIPO_AGENDA_LABEL, TipoAgendaManual } from "@/data/agenda";
-import { ContactoUnificado, FILTRO_VACIO } from "@/data/crmUnificado";
+import { Contacto } from "@/data/crm";
+import { LeadBase } from "@/data/leadsBase";
+import { ContactoUnificado, FILTRO_VACIO, unificarDesdeContactos, unificarDesdeTracking } from "@/data/crmUnificado";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
 import Modal from "@/components/Modal";
 import EnviosActivosPanel from "@/components/EnviosActivosPanel";
+import ContactoPanelCompleto from "@/components/ContactoPanel";
 import { fieldLabelClass, fieldInputClass, btnPrimaryClass, btnSecondaryClass, panelCardClass } from "@/components/formStyles";
 
 type Vista = "dia" | "semana" | "mes";
@@ -56,6 +59,7 @@ export default function AgendaView() {
   const [fechaBase, setFechaBase] = useState(new Date());
   const [fechaInput, setFechaInput] = useState(isoDate(new Date()));
   const [datos, setDatos] = useState<{ rango: string; eventos: EventoAgenda[] } | null>(null);
+  const [mostrarFinalizados, setMostrarFinalizados] = useState(false);
   const [modalNuevo, setModalNuevo] = useState<string | null>(null);
   const [detalle, setDetalle] = useState<EventoAgenda | null>(null);
 
@@ -137,10 +141,7 @@ export default function AgendaView() {
         </button>
       </div>
 
-      <div className="mb-6">
-        <h2 className="type-label text-[var(--color-text-muted)] mb-2">Envíos en curso</h2>
-        <EnviosActivosPanel limite={5} />
-      </div>
+      <h2 className="type-label text-[var(--color-text-muted)] mb-2">Actividades Diarias</h2>
 
       <div className={`${panelCardClass} p-3 mb-6 flex flex-wrap items-center gap-3`}>
         <button type="button" onClick={() => mover(-1)} className={btnSecondaryClass} aria-label="Anterior">
@@ -205,6 +206,22 @@ export default function AgendaView() {
         />
       )}
 
+      <div className="mt-6 mb-6">
+        <h2 className="type-label text-[var(--color-text-muted)] mb-2">Envíos en curso</h2>
+        <EnviosActivosPanel estado="en_curso" limite={5} />
+      </div>
+
+      <div>
+        <button type="button" onClick={() => setMostrarFinalizados((v) => !v)} className={btnSecondaryClass}>
+          {mostrarFinalizados ? "Ocultar envíos finalizados" : "Envíos finalizados"}
+        </button>
+        {mostrarFinalizados && (
+          <div className="mt-3">
+            <EnviosActivosPanel estado="completado" />
+          </div>
+        )}
+      </div>
+
       <Modal open={modalNuevo !== null} onClose={() => setModalNuevo(null)}>
         {modalNuevo !== null && (
           <PanelNuevaActividad
@@ -235,7 +252,11 @@ function FilaEvento({
   onCompletar: (v: boolean) => void;
 }) {
   return (
-    <div className={`${panelCardClass} p-3 flex items-start gap-3 ${ev.completada ? "opacity-50" : ""}`}>
+    <div
+      className={`p-3 flex items-start gap-3 rounded-2xl shadow-xl border ${
+        ev.completada ? "bg-green-50 border-green-200" : "bg-[var(--color-surface)] border-[var(--color-border)]"
+      }`}
+    >
       <input
         type="checkbox"
         checked={ev.completada}
@@ -247,7 +268,7 @@ function FilaEvento({
           <span className="text-xs font-medium text-[var(--color-brand-dark)]">{ev.hora ? ev.hora.slice(0, 5) : "Todo el día"}</span>
           {badgeTipo(ev.tipo)}
         </div>
-        <p className={`text-sm text-[var(--color-brand-dark)] ${ev.completada ? "line-through" : ""}`}>{ev.nota}</p>
+        <p className="text-sm text-[var(--color-brand-dark)]">{ev.nota}</p>
         {ev.contactoNombre && <p className="text-xs text-[var(--color-text-muted)]">{ev.contactoNombre}</p>}
       </button>
     </div>
@@ -305,8 +326,10 @@ function VistaSemana({
                   key={`${ev.origen}-${ev.id}`}
                   type="button"
                   onClick={() => onAbrir(ev)}
-                  className={`text-left text-xs p-2 rounded-lg bg-[var(--color-bg-warm)] border border-[var(--color-border-subtle)] hover:border-[var(--color-brand-red)] transition-colors ${
-                    ev.completada ? "opacity-50 line-through" : ""
+                  className={`text-left text-xs p-2 rounded-lg border transition-colors ${
+                    ev.completada
+                      ? "bg-green-50 border-green-200"
+                      : "bg-[var(--color-bg-warm)] border-[var(--color-border-subtle)] hover:border-[var(--color-brand-red)]"
                   }`}
                 >
                   <span className="font-medium">{ev.hora ? ev.hora.slice(0, 5) : "Todo el día"}</span> — {ev.nota}
@@ -361,8 +384,8 @@ function VistaMes({
                 {evs.slice(0, MAX_VISIBLE).map((ev) => (
                   <span
                     key={`${ev.origen}-${ev.id}`}
-                    className={`block text-[10px] truncate px-1 py-0.5 rounded bg-[var(--color-bg-warm)] ${
-                      ev.completada ? "opacity-50 line-through" : ""
+                    className={`block text-[10px] truncate px-1 py-0.5 rounded ${
+                      ev.completada ? "bg-green-50" : "bg-[var(--color-bg-warm)]"
                     }`}
                   >
                     {ev.nota}
@@ -571,6 +594,29 @@ function PanelDetalle({
   onCompletar: (v: boolean) => void;
   onClose: () => void;
 }) {
+  const [contacto, setContacto] = useState<ContactoUnificado | null>(null);
+  const [cargandoContacto, setCargandoContacto] = useState(false);
+
+  // Antes el nombre de la empresa era solo texto -- no había forma de llegar
+  // a sus datos (teléfono, mail, historial) desde un evento de agenda sin
+  // salir a buscarlo a mano en CRM/Base Tracking. Se trae recién al hacer
+  // click, no de entrada -- este modal se abre por cada evento del día/semana
+  // y la mayoría no se van a expandir.
+  async function abrirContacto() {
+    if (!evento.contactoId || !evento.tabla) return;
+    setCargandoContacto(true);
+    const res = await fetch(`/api/admin/crm/contactos/${evento.contactoId}?tabla=${evento.tabla}`);
+    const data = await res.json();
+    setCargandoContacto(false);
+    if (!res.ok || !data.fila) {
+      window.alert(`No se pudo cargar la empresa: ${data.error ?? res.statusText}`);
+      return;
+    }
+    const unificado =
+      evento.tabla === "contactos" ? unificarDesdeContactos(data.fila as Contacto) : unificarDesdeTracking(data.fila as LeadBase);
+    setContacto(unificado);
+  }
+
   return (
     <div className={`${panelCardClass} p-6 sm:p-8`}>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -583,12 +629,28 @@ function PanelDetalle({
         {parseIsoDate(evento.fecha).toLocaleDateString("es-AR", { weekday: "long", day: "2-digit", month: "long" })}
         {evento.hora ? ` — ${evento.hora.slice(0, 5)}` : " — Todo el día"}
       </p>
-      {evento.contactoNombre && <p className="text-sm text-[var(--color-text-muted)] mb-3">{evento.contactoNombre}</p>}
+      {evento.contactoNombre && evento.contactoId && evento.tabla && (
+        <button
+          type="button"
+          onClick={abrirContacto}
+          disabled={cargandoContacto}
+          className="block text-left text-lg font-bold text-[var(--color-brand-dark)] mb-3 hover:underline disabled:no-underline disabled:opacity-60"
+        >
+          {cargandoContacto ? "Cargando…" : evento.contactoNombre}
+        </button>
+      )}
+      {evento.contactoNombre && (!evento.contactoId || !evento.tabla) && (
+        <p className="text-lg font-bold text-[var(--color-brand-dark)] mb-3">{evento.contactoNombre}</p>
+      )}
       <p className="text-base text-[var(--color-brand-dark)] whitespace-pre-line mb-6">{evento.nota}</p>
       <label className="flex items-center gap-2">
         <input type="checkbox" checked={evento.completada} onChange={(e) => onCompletar(e.target.checked)} className="accent-[var(--color-brand-red)]" />
         <span className="text-sm">Completada</span>
       </label>
+
+      <Modal open={contacto !== null} onClose={() => setContacto(null)} maxWidthClass="max-w-2xl">
+        {contacto && <ContactoPanelCompleto unificado={contacto} onClose={() => setContacto(null)} />}
+      </Modal>
       <button type="button" onClick={onClose} className={`${btnSecondaryClass} mt-6`}>
         Cerrar
       </button>

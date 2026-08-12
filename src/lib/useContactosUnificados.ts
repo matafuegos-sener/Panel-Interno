@@ -49,6 +49,9 @@ export function useContactosUnificados() {
     if (filtro.rubros.length > 0) params.set("rubros", filtro.rubros.join(","));
     if (filtro.tier) params.set("tier", filtro.tier);
     if (filtro.activo) params.set("activo", filtro.activo);
+    if (filtro.mailEnviado) params.set("mail_enviado", filtro.mailEnviado);
+    if (filtro.whatsappEnviado) params.set("whatsapp_enviado", filtro.whatsappEnviado);
+    if (filtro.llamadaRealizada) params.set("llamada_realizada", filtro.llamadaRealizada);
     if (filtro.busqueda.trim()) params.set("busqueda", filtro.busqueda.trim());
 
     const res = await fetch(`/api/admin/crm/lote?${params.toString()}`);

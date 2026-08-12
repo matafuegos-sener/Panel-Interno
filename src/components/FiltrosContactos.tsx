@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { CATEGORIA_LABEL, FiltroContactosState } from "@/data/crmUnificado";
+import { CATEGORIA_LABEL, FILTRO_VACIO, FiltroContactosState } from "@/data/crmUnificado";
 import { OpcionesFiltro } from "@/lib/useContactosUnificados";
-import { btnPrimaryClass } from "@/components/formStyles";
+import { btnPrimaryClass, btnSecondaryClass } from "@/components/formStyles";
 
 export { FILTRO_VACIO } from "@/data/crmUnificado";
 export type { FiltroContactosState } from "@/data/crmUnificado";
@@ -33,49 +33,82 @@ export default function FiltrosContactos({ opciones, value, onChange, onFiltrar,
   const { categorias, rubros, tiers } = opciones;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {mostrarCategoria && (
-        <select className={selectClass} value={value.categoria} onChange={(e) => onChange({ ...value, categoria: e.target.value })}>
-          <option value="">Categoría — todas</option>
-          {categorias.map((c) => (
-            <option key={c} value={c}>{CATEGORIA_LABEL[c] ?? c}</option>
+    <div className="flex flex-col gap-2">
+      {/* Renglón 1: nombre primero, filtros de siempre, "Filtrar" al final. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {mostrarBusqueda && (
+          <input
+            className={`${selectClass} flex-1 min-w-[160px]`}
+            type="search"
+            placeholder="Buscar empresa…"
+            value={value.busqueda}
+            onChange={(e) => onChange({ ...value, busqueda: e.target.value })}
+            onKeyDown={(e) => e.key === "Enter" && onFiltrar()}
+          />
+        )}
+
+        {mostrarCategoria && (
+          <select className={selectClass} value={value.categoria} onChange={(e) => onChange({ ...value, categoria: e.target.value })}>
+            <option value="">Categoría — todas</option>
+            {categorias.map((c) => (
+              <option key={c} value={c}>{CATEGORIA_LABEL[c] ?? c}</option>
+            ))}
+          </select>
+        )}
+
+        <RubroMultiSelect opciones={rubros} seleccionados={value.rubros} onChange={(rubros) => onChange({ ...value, rubros })} />
+
+        <select className={selectClass} value={value.tier} onChange={(e) => onChange({ ...value, tier: e.target.value })}>
+          <option value="">Tier — todos</option>
+          {tiers.map((t) => (
+            <option key={t} value={t}>{t}</option>
           ))}
         </select>
-      )}
 
-      <RubroMultiSelect opciones={rubros} seleccionados={value.rubros} onChange={(rubros) => onChange({ ...value, rubros })} />
+        <select className={selectClass} value="CABA" disabled title="Toda la base actual es CABA">
+          <option value="CABA">Provincia — CABA</option>
+        </select>
 
-      <select className={selectClass} value={value.tier} onChange={(e) => onChange({ ...value, tier: e.target.value })}>
-        <option value="">Tier — todos</option>
-        {tiers.map((t) => (
-          <option key={t} value={t}>{t}</option>
-        ))}
-      </select>
+        <select className={selectClass} value={value.activo} onChange={(e) => onChange({ ...value, activo: e.target.value as FiltroContactosState["activo"] })}>
+          <option value="">Todos</option>
+          <option value="si">Solo activos</option>
+          <option value="no">Solo inactivos</option>
+        </select>
 
-      <select className={selectClass} value="CABA" disabled title="Toda la base actual es CABA">
-        <option value="CABA">Provincia — CABA</option>
-      </select>
+        <button type="button" onClick={onFiltrar} className={`${btnPrimaryClass} ml-auto shrink-0`}>
+          Filtrar
+        </button>
+      </div>
 
-      <select className={selectClass} value={value.activo} onChange={(e) => onChange({ ...value, activo: e.target.value as FiltroContactosState["activo"] })}>
-        <option value="">Todos</option>
-        <option value="si">Solo activos</option>
-        <option value="no">Solo inactivos</option>
-      </select>
+      {/* Renglón 2: los 3 filtros de envío, "Borrar filtro" debajo de "Filtrar". */}
+      <div className="flex flex-wrap items-center gap-2">
+        <select className={selectClass} value={value.mailEnviado} onChange={(e) => onChange({ ...value, mailEnviado: e.target.value as FiltroContactosState["mailEnviado"] })}>
+          <option value="">Mail — todos</option>
+          <option value="si">Mail enviado</option>
+          <option value="no">Mail no enviado</option>
+        </select>
 
-      {mostrarBusqueda && (
-        <input
-          className={`${selectClass} flex-1 min-w-[160px]`}
-          type="search"
-          placeholder="Buscar empresa…"
-          value={value.busqueda}
-          onChange={(e) => onChange({ ...value, busqueda: e.target.value })}
-          onKeyDown={(e) => e.key === "Enter" && onFiltrar()}
-        />
-      )}
+        <select className={selectClass} value={value.whatsappEnviado} onChange={(e) => onChange({ ...value, whatsappEnviado: e.target.value as FiltroContactosState["whatsappEnviado"] })}>
+          <option value="">WhatsApp — todos</option>
+          <option value="si">WhatsApp enviado</option>
+          <option value="no">WhatsApp no enviado</option>
+        </select>
 
-      <button type="button" onClick={onFiltrar} className={`${btnPrimaryClass} ml-auto shrink-0`}>
-        Filtrar
-      </button>
+        <select
+          className={selectClass}
+          value={value.llamadaRealizada}
+          onChange={(e) => onChange({ ...value, llamadaRealizada: e.target.value as FiltroContactosState["llamadaRealizada"] })}
+          title="Todavía no hay ninguna pantalla que marque una llamada como realizada"
+        >
+          <option value="">Llamada — todas</option>
+          <option value="si">Llamada realizada</option>
+          <option value="no">Llamada no realizada</option>
+        </select>
+
+        <button type="button" onClick={() => onChange(FILTRO_VACIO)} className={`${btnSecondaryClass} ml-auto shrink-0`}>
+          Borrar filtro
+        </button>
+      </div>
     </div>
   );
 }

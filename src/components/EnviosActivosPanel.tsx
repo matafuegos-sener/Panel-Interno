@@ -4,18 +4,32 @@ import { useState } from "react";
 import { DetalleTanda, TandaEnvio } from "@/data/tandas";
 import { useTandasEnvio } from "@/lib/useTandasEnvio";
 import { panelCardClass } from "@/components/formStyles";
+import { fmtFecha } from "@/lib/fechas";
 
 const TIPO_LABEL: Record<TandaEnvio["tipo"], string> = { mail: "Mail", whatsapp: "WhatsApp" };
 
-function fmtHora(iso: string): string {
-  return new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+// Antes solo mostraba la hora -- una tanda vieja sin terminar (ej. quedó
+// "en_curso" varios días) se veía indistinguible de una de hoy. Ahora
+// siempre lleva fecha + hora.
+function fmtFechaHora(iso: string): string {
+  const hora = new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  return `${fmtFecha(iso)} ${hora}`;
 }
 
 // Lista de tandas de mail/WhatsApp con progreso en vivo (poll cada 5s vía
 // useTandasEnvio) y click-to-expand inline para ver el detalle item por item
 // sin salir de la pantalla -- se usa tal cual dentro de la Agenda (con
-// `limite`) y en la vista dedicada "Envíos activos" (sin límite).
-export default function EnviosActivosPanel({ tipo, limite }: { tipo?: TandaEnvio["tipo"]; limite?: number }) {
+// `limite`, y con `estado` para separar "en curso" de "finalizados") y en la
+// vista dedicada "Envíos activos" (sin límite ni filtro de estado).
+export default function EnviosActivosPanel({
+  tipo,
+  limite,
+  estado,
+}: {
+  tipo?: TandaEnvio["tipo"];
+  limite?: number;
+  estado?: TandaEnvio["estado"];
+}) {
   const tandas = useTandasEnvio();
   const [expandidoId, setExpandidoId] = useState<string | null>(null);
   const [detalles, setDetalles] = useState<Record<string, DetalleTanda>>({});
@@ -34,7 +48,7 @@ export default function EnviosActivosPanel({ tipo, limite }: { tipo?: TandaEnvio
     return <p className="text-sm text-[var(--color-text-muted)]">Cargando…</p>;
   }
 
-  const filtrados = tipo ? tandas.filter((t) => t.tipo === tipo) : tandas;
+  const filtrados = tandas.filter((t) => (tipo ? t.tipo === tipo : true) && (estado ? t.estado === estado : true));
   const ordenados = [...filtrados].sort((a, b) => {
     if (a.estado !== b.estado) return a.estado === "en_curso" ? -1 : 1;
     return b.creadoEn.localeCompare(a.creadoEn);
@@ -44,7 +58,7 @@ export default function EnviosActivosPanel({ tipo, limite }: { tipo?: TandaEnvio
   if (lista.length === 0) {
     return (
       <p className="text-sm text-[var(--color-text-muted)] py-4 text-center border border-dashed border-[var(--color-border)] rounded-2xl">
-        Ningún envío activo.
+        {estado === "completado" ? "Ningún envío finalizado todavía." : "Ningún envío activo."}
       </p>
     );
   }
@@ -65,7 +79,7 @@ export default function EnviosActivosPanel({ tipo, limite }: { tipo?: TandaEnvio
                   {(t.asunto || t.plantillaTitulo) && (
                     <span className="text-xs text-[var(--color-text-muted)] truncate">{t.asunto || t.plantillaTitulo}</span>
                   )}
-                  <span className="text-xs text-[var(--color-text-muted)]">{fmtHora(t.creadoEn)}</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">{fmtFechaHora(t.creadoEn)}</span>
                 </div>
                 <div className="h-1.5 w-full max-w-[220px] bg-[var(--color-bg-warm)] rounded-full overflow-hidden">
                   <div className="h-full bg-[var(--color-brand-red)] transition-all" style={{ width: `${pct}%` }} />
