@@ -30,6 +30,22 @@ export async function GET() {
     : { data: [] as { id: string; titulo: string }[] };
   const mapaPlantillas = new Map((plantillas ?? []).map((p) => [p.id as string, p.titulo as string]));
 
+  // Cuenta rebotes/quejas por tanda para el badge del listado, sin agregar
+  // una columna nueva a tandas_envio -- con hasta 15 tandas x 25 items esto
+  // es liviano, no hace falta un RPC agrupado.
+  const idsTandas = (tandas ?? []).map((t) => t.id);
+  const { data: problemas } = idsTandas.length
+    ? await supabaseAdmin
+        .from("tandas_envio_items")
+        .select("tanda_id")
+        .in("tanda_id", idsTandas)
+        .in("resend_estado", ["rebotado", "quejado"])
+    : { data: [] as { tanda_id: string }[] };
+  const conteoProblemas = new Map<string, number>();
+  for (const p of problemas ?? []) {
+    conteoProblemas.set(p.tanda_id, (conteoProblemas.get(p.tanda_id) ?? 0) + 1);
+  }
+
   const resultado: TandaEnvio[] = (tandas ?? []).map((t) => ({
     id: t.id,
     tipo: t.tipo,
@@ -41,6 +57,7 @@ export async function GET() {
     plantillaTitulo: t.plantilla_id ? mapaPlantillas.get(t.plantilla_id) ?? null : null,
     creadoEn: t.creado_en,
     completadoEn: t.completado_en,
+    conProblemas: conteoProblemas.get(t.id) ?? 0,
   }));
 
   return NextResponse.json(resultado, { headers: { "Cache-Control": "no-store" } });

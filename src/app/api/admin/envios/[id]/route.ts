@@ -32,6 +32,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     plantillaTitulo = plantilla?.titulo ?? null;
   }
 
+  const conProblemas = (items ?? []).filter(
+    (it) => it.resend_estado === "rebotado" || it.resend_estado === "quejado"
+  ).length;
+
   const tandaResp: TandaEnvio = {
     id: tanda.id,
     tipo: tanda.tipo,
@@ -43,6 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     plantillaTitulo,
     creadoEn: tanda.creado_en,
     completadoEn: tanda.completado_en,
+    conProblemas,
   };
   const itemsResp: ItemTandaEnvio[] = (items ?? []).map((it) => ({
     id: it.id,
@@ -52,6 +57,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     orden: it.orden,
     estado: it.estado,
     motivo: it.motivo,
+    resendEstado: it.resend_estado ?? "enviado",
   }));
 
   const respuesta: DetalleTanda = { tanda: tandaResp, items: itemsResp };

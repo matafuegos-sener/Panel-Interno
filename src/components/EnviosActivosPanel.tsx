@@ -1,12 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { DetalleTanda, TandaEnvio } from "@/data/tandas";
+import { DetalleTanda, ItemTandaEnvio, TandaEnvio } from "@/data/tandas";
 import { useTandasEnvio } from "@/lib/useTandasEnvio";
 import { panelCardClass } from "@/components/formStyles";
 import { fmtFecha } from "@/lib/fechas";
 
 const TIPO_LABEL: Record<TandaEnvio["tipo"], string> = { mail: "Mail", whatsapp: "WhatsApp" };
+
+// Solo se usa cuando it.estado === "enviado" -- "fallido"/"pendiente" ya
+// tienen su propio color más arriba y no dependen de Resend.
+const RESEND_ESTADO_LABEL: Record<ItemTandaEnvio["resendEstado"], string> = {
+  enviado: "Enviado",
+  entregado: "Entregado",
+  rebotado: "Rebotó",
+  quejado: "Marcado spam",
+};
+const RESEND_ESTADO_COLOR: Record<ItemTandaEnvio["resendEstado"], string> = {
+  enviado: "text-green-700",
+  entregado: "text-green-700",
+  rebotado: "text-red-700",
+  quejado: "text-red-700",
+};
 
 // Antes solo mostraba la hora -- una tanda vieja sin terminar (ej. quedó
 // "en_curso" varios días) se veía indistinguible de una de hoy. Ahora
@@ -85,13 +100,20 @@ export default function EnviosActivosPanel({
                   <div className="h-full bg-[var(--color-brand-red)] transition-all" style={{ width: `${pct}%` }} />
                 </div>
               </div>
-              <span
-                className={`text-xs px-2 py-1 rounded shrink-0 ${
-                  t.estado === "en_curso" ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"
-                }`}
-              >
-                {t.estado === "en_curso" ? `${resueltos}/${t.total}` : "Completado"}
-              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {t.conProblemas > 0 && (
+                  <span className="text-xs px-2 py-1 rounded bg-red-100 text-red-700">
+                    {t.conProblemas} {t.conProblemas === 1 ? "problema" : "problemas"}
+                  </span>
+                )}
+                <span
+                  className={`text-xs px-2 py-1 rounded ${
+                    t.estado === "en_curso" ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"
+                  }`}
+                >
+                  {t.estado === "en_curso" ? `${resueltos}/${t.total}` : "Completado"}
+                </span>
+              </div>
             </button>
             {expandido && (
               <div className="border-t border-[var(--color-border-subtle)] p-3">
@@ -106,10 +128,18 @@ export default function EnviosActivosPanel({
                         <span className="text-[var(--color-brand-dark)] truncate">{it.nombre}</span>
                         <span
                           className={`shrink-0 ${
-                            it.estado === "enviado" ? "text-green-700" : it.estado === "fallido" ? "text-amber-700" : "text-[var(--color-text-muted)]"
+                            it.estado === "enviado"
+                              ? RESEND_ESTADO_COLOR[it.resendEstado]
+                              : it.estado === "fallido"
+                                ? "text-amber-700"
+                                : "text-[var(--color-text-muted)]"
                           }`}
                         >
-                          {it.estado === "pendiente" ? "Pendiente" : it.estado === "enviado" ? "Enviado" : it.motivo || "Fallido"}
+                          {it.estado === "pendiente"
+                            ? "Pendiente"
+                            : it.estado === "enviado"
+                              ? RESEND_ESTADO_LABEL[it.resendEstado]
+                              : it.motivo || "Fallido"}
                         </span>
                       </div>
                     ))}

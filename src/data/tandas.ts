@@ -13,7 +13,14 @@ export interface TandaEnvio {
   plantillaTitulo: string | null;
   creadoEn: string;
   completadoEn: string | null;
+  // Cantidad de items con resend_estado en (rebotado, quejado) -- ver
+  // /api/webhooks/resend. Siempre 0 en tandas de WhatsApp (no tienen
+  // resend_id). Se calcula en el endpoint de lista, no viene de una
+  // columna propia en tandas_envio.
+  conProblemas: number;
 }
+
+export type ResendEstado = "enviado" | "entregado" | "rebotado" | "quejado";
 
 export interface ItemTandaEnvio {
   id: string;
@@ -23,6 +30,7 @@ export interface ItemTandaEnvio {
   orden: number;
   estado: "pendiente" | "enviado" | "fallido";
   motivo: string | null;
+  resendEstado: ResendEstado;
 }
 
 export interface DetalleTanda {
