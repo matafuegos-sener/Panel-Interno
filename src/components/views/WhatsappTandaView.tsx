@@ -1,10 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TablaOrigen } from "@/data/crm";
 import { MensajePredefinido } from "@/data/mensajes";
 import { reemplazarVariables } from "@/lib/plantillas";
 import { panelCardClass, btnPrimaryClass } from "@/components/formStyles";
+
+const ESPERA_BEEP_MS = 10 * 60 * 1000;
+
+function reproducirBeep() {
+  const AudioContextCtor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  const ctx = new AudioContextCtor();
+  const tonos = [0, 250, 500];
+  tonos.forEach((delayMs) => {
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.value = 880;
+    gain.gain.value = 0.2;
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    const start = ctx.currentTime + delayMs / 1000;
+    oscillator.start(start);
+    oscillator.stop(start + 0.15);
+  });
+}
 
 interface FilaTanda {
   id: string;
@@ -28,6 +48,15 @@ export default function WhatsappTandaView({ tandaId }: Props) {
   const [plantilla, setPlantilla] = useState<MensajePredefinido | null>(null);
   const [filas, setFilas] = useState<FilaTanda[] | null>(null);
   const [error, setError] = useState("");
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
+    };
+  }, []);
 
   useEffect(() => {
     if (!tandaId) return;
@@ -67,6 +96,20 @@ export default function WhatsappTandaView({ tandaId }: Props) {
       return;
     }
     setFilas((prev) => prev && prev.map((f) => (f.tabla === fila.tabla && f.id === fila.id ? { ...f, [campo]: valor } : f)));
+
+    if (campo !== "whatsapp_enviado") return;
+    const clave = `${fila.tabla}-${fila.id}`;
+    const timerExistente = timersRef.current.get(clave);
+    if (timerExistente) {
+      clearTimeout(timerExistente);
+      timersRef.current.delete(clave);
+    }
+    if (!valor) return;
+    const timer = setTimeout(() => {
+      reproducirBeep();
+      timersRef.current.delete(clave);
+    }, ESPERA_BEEP_MS);
+    timersRef.current.set(clave, timer);
   }
 
   async function copiarYAbrir(fila: FilaTanda) {
