@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { enviarMail } from "@/lib/resend";
+import { enviarMail, MAIL_FROM_PROSPECCION } from "@/lib/resend";
 import { reemplazarVariables, textoAHtml, textoAPlano } from "@/lib/plantillas";
 import { TablaOrigen, CATEGORIA_PROSPECTO_CERO } from "@/data/crm";
 
@@ -15,6 +15,25 @@ type FilaContacto = Record<string, string | boolean | null>;
 const COLUMNA_MAIL: Record<TablaOrigen, string> = { contactos: "mail_1", leads_base: "email" };
 const COLUMNAS_NOMBRE: Record<TablaOrigen, string> = { contactos: "razon_social, nombre_comercial", leads_base: "nombre" };
 const MAX_TANDA = 25;
+
+// Rampa de warm-up del dominio (ver build-log 2026-08-12). El 2026-08-11 se
+// mandaron 60 mails en 4 tandas pegadas en menos de una hora -- muy por
+// encima del tope seguro para un dominio sin historial de envío, y en
+// ráfaga en vez de repartido. Estos dos límites existen para que ese
+// patrón no se pueda repetir por accidente, no son arbitrarios: se
+// recalculan a mano a medida que el dominio acumula historial limpio.
+const TOPE_DIARIO: { desde: string; tope: number }[] = [
+  { desde: "2026-08-12", tope: 40 },
+  { desde: "2026-08-13", tope: 45 },
+  { desde: "2026-08-14", tope: 50 },
+];
+const TOPE_DIARIO_ESTABLE = 50;
+const ESPACIADO_MINIMO_MINUTOS = 90;
+
+function topeDiarioHoy(hoy: string): number {
+  const aplicable = [...TOPE_DIARIO].reverse().find((f) => f.desde <= hoy);
+  return aplicable ? aplicable.tope : TOPE_DIARIO_ESTABLE;
+}
 
 function nombreDeFila(tabla: TablaOrigen, fila: FilaContacto): string {
   if (tabla === "leads_base") return (fila.nombre as string) || "";
@@ -63,6 +82,45 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `La tanda no puede superar ${MAX_TANDA} contactos` }, { status: 400 });
   }
 
+  const ahora = new Date();
+  const hoyISO = ahora.toISOString().slice(0, 10);
+  const inicioHoy = `${hoyISO}T00:00:00.000Z`;
+  const tope = topeDiarioHoy(hoyISO);
+
+  const [{ count: yaEnviadosHoy }, { data: ultimoItem }] = await Promise.all([
+    supabaseAdmin
+      .from("tandas_envio_items")
+      .select("id", { count: "exact", head: true })
+      .eq("estado", "enviado")
+      .gte("enviado_en", inicioHoy),
+    supabaseAdmin
+      .from("tandas_envio_items")
+      .select("enviado_en")
+      .eq("estado", "enviado")
+      .order("enviado_en", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  if ((yaEnviadosHoy ?? 0) + items.length > tope) {
+    const restante = Math.max(tope - (yaEnviadosHoy ?? 0), 0);
+    return NextResponse.json(
+      { error: `Tope diario: ${yaEnviadosHoy ?? 0}/${tope} ya enviados hoy. Quedan ${restante} disponibles.` },
+      { status: 429 },
+    );
+  }
+
+  if (ultimoItem?.enviado_en) {
+    const minutosDesdeUltimo = (ahora.getTime() - new Date(ultimoItem.enviado_en).getTime()) / 60000;
+    if (minutosDesdeUltimo < ESPACIADO_MINIMO_MINUTOS) {
+      const faltan = Math.ceil(ESPACIADO_MINIMO_MINUTOS - minutosDesdeUltimo);
+      return NextResponse.json(
+        { error: `Esperá ${faltan} minutos más antes de la próxima tanda (mínimo ${ESPACIADO_MINIMO_MINUTOS} min entre tandas, para no mandar en ráfaga).` },
+        { status: 429 },
+      );
+    }
+  }
+
   const idsContactos = items.filter((i) => i.tabla === "contactos").map((i) => i.id);
   const idsTracking = items.filter((i) => i.tabla === "leads_base").map((i) => i.id);
   const [filasContactos, filasTracking] = await Promise.all([
@@ -104,10 +162,19 @@ export async function POST(req: NextRequest) {
   const enviados: ItemTanda[] = [];
   const fallidos: { id: string; tabla: TablaOrigen; motivo: string }[] = [];
 
-  async function marcarItem(item: ItemTanda, estado: "enviado" | "fallido", motivo?: string) {
+  async function marcarItem(
+    item: ItemTanda,
+    estado: "enviado" | "fallido",
+    motivo?: string,
+    resendId?: string,
+  ) {
     await supabaseAdmin
       .from("tandas_envio_items")
-      .update({ estado, motivo: motivo ?? null })
+      .update({
+        estado,
+        motivo: motivo ?? null,
+        ...(resendId ? { resend_id: resendId, enviado_en: new Date().toISOString() } : {}),
+      })
       .eq("tanda_id", tanda.id)
       .eq("contacto_id", item.id)
       .eq("tabla_origen", item.tabla);
@@ -156,6 +223,7 @@ export async function POST(req: NextRequest) {
       subject: asunto,
       text: textoAPlano(cuerpo),
       html: textoAHtml(cuerpo),
+      from: MAIL_FROM_PROSPECCION,
     });
     if (!resultado.ok) {
       fallidos.push({ id: item.id, tabla, motivo: resultado.error || "Resend rechazó el envío" });
@@ -172,7 +240,7 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", item.id);
     enviados.push({ id: item.id, tabla });
-    await marcarItem(item, "enviado");
+    await marcarItem(item, "enviado", undefined, resultado.id);
   }
 
   await supabaseAdmin
