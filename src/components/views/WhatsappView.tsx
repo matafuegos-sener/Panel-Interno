@@ -101,10 +101,6 @@ export default function WhatsappView() {
           onFiltrar={aplicarFiltro}
           mostrarCategoria={false}
         />
-        <p className="text-xs text-[var(--color-text-muted)] mt-2">
-          Esta tanda es solo para contactos fríos — a alguien que ya se está trabajando (llamada, reunión, mail previo) nunca le llega un
-          mensaje masivo acá.
-        </p>
         {cargandoFiltro && <p className="text-sm text-[var(--color-text-muted)] mt-3">Buscando…</p>}
         {!cargandoFiltro && stats && (
           <p className="text-sm text-[var(--color-text-muted)] mt-3">
@@ -112,7 +108,6 @@ export default function WhatsappView() {
             <strong className="text-[var(--color-brand-dark)]">{stats.elegibles}</strong> fríos y disponibles para WhatsApp
           </p>
         )}
-        {!cargandoFiltro && !stats && <p className="text-sm text-[var(--color-text-muted)] mt-3">Elegí los filtros y tocá &quot;Filtrar&quot; para ver a cuántos contactos les llega.</p>}
       </div>
 
       <div className={`${panelCardClass} p-4 sm:p-6 flex flex-col gap-5`}>
