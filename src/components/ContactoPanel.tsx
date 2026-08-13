@@ -36,6 +36,7 @@ export default function ContactoPanel({ unificado, onClose }: { unificado: Conta
   const [interacciones, setInteracciones] = useState<Interaccion[] | null>(null);
   const [acciones, setAcciones] = useState<Accion[]>([]);
   const [nombreContacto, setNombreContacto] = useState("");
+  const [email, setEmail] = useState("");
   const [guardandoContacto, setGuardandoContacto] = useState(false);
 
   const [mostrarInfo, setMostrarInfo] = useState(false);
@@ -56,6 +57,9 @@ export default function ContactoPanel({ unificado, onClose }: { unificado: Conta
         setCamposExtra(data.fila ?? null);
         if (!nombreContactoInicializado.current) {
           setNombreContacto(data.fila?.contacto ?? "");
+          // columna real difiere entre tablas -- ver PATCH en
+          // /api/admin/crm/contactos/[id]
+          setEmail(data.fila?.mail_1 ?? data.fila?.email ?? "");
           nombreContactoInicializado.current = true;
         }
       });
@@ -71,7 +75,7 @@ export default function ContactoPanel({ unificado, onClose }: { unificado: Conta
     await fetch(`/api/admin/crm/contactos/${id}?tabla=${tabla}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contacto: nombreContacto.trim() || null }),
+      body: JSON.stringify({ contacto: nombreContacto.trim() || null, email: email.trim() || null }),
     });
     setGuardandoContacto(false);
   }
@@ -194,10 +198,20 @@ export default function ContactoPanel({ unificado, onClose }: { unificado: Conta
           <span className={fieldLabelClass}>Persona de contacto</span>
           <input className={fieldInputClass} value={nombreContacto} onChange={(e) => setNombreContacto(e.target.value)} placeholder="Nombre de quien atiende" />
         </label>
-        <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Tel</span>{unificado.telefono || "sin dato"}</p>
-        <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Mail</span>{unificado.email || "sin dato"}</p>
+        <div className="flex flex-col gap-1">
+          <p className="text-sm text-[var(--color-text-muted)]"><span className="type-label mr-1">Tel</span>{unificado.telefono || "sin dato"}</p>
+          <label className="text-sm text-[var(--color-text-muted)] flex items-center">
+            <span className="type-label mr-1">Mail</span>
+            <input
+              className="border-b border-[var(--color-border)] bg-transparent px-1 text-[var(--color-brand-dark)] focus:outline-none focus:border-[var(--color-brand-red)]"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="sin dato"
+            />
+          </label>
+        </div>
         <button type="button" onClick={guardarContacto} disabled={guardandoContacto} className={btnSecondaryClass}>
-          Guardar persona de contacto
+          Guardar contacto
         </button>
       </div>
 

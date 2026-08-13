@@ -61,12 +61,25 @@ export async function PATCH(
   }
 
   const body = await req.json().catch(() => null);
-  if (!body || typeof body !== "object" || !("contacto" in body)) {
+  if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "Formato inválido" }, { status: 400 });
   }
 
-  const contacto = typeof body.contacto === "string" ? body.contacto.trim() || null : null;
-  const { error } = await supabaseAdmin.from(tabla).update({ contacto }).eq("id", id);
+  // "email" uniformado como concepto, pero la columna real difiere entre
+  // tablas (0006_uniformar_base.sql no llegó a unificar este nombre).
+  const update: Record<string, string | null> = {};
+  if ("contacto" in body) {
+    update.contacto = typeof body.contacto === "string" ? body.contacto.trim() || null : null;
+  }
+  if ("email" in body) {
+    const columnaEmail = tabla === "contactos" ? "mail_1" : "email";
+    update[columnaEmail] = typeof body.email === "string" ? body.email.trim() || null : null;
+  }
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: "Formato inválido" }, { status: 400 });
+  }
+
+  const { error } = await supabaseAdmin.from(tabla).update(update).eq("id", id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
