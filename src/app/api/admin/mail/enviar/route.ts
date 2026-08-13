@@ -30,6 +30,38 @@ const TOPE_DIARIO: { desde: string; tope: number }[] = [
 const TOPE_DIARIO_ESTABLE = 50;
 const ESPACIADO_MINIMO_MINUTOS = 90;
 
+// El webhook de Resend (src/app/api/webhooks/resend/route.ts) guarda
+// rebotado/quejado por item pero nadie lo consultaba antes de esto -- se
+// veía como badge en Envíos activos, sin frenar nada (bug reportado
+// 2026-08-13, ver build-log). Ventana de 7 días con muestra mínima para no
+// frenar por 1 rebote aislado sobre 2 envíos; una queja de spam frena
+// siempre, sin importar el tamaño de la muestra.
+const VENTANA_REBOTES_DIAS = 7;
+const MUESTRA_MINIMA_TASA_REBOTE = 5;
+const TASA_REBOTE_MAXIMA = 0.08;
+
+async function motivoFrenoPorRebotes(ahora: Date): Promise<string | null> {
+  const desde = new Date(ahora.getTime() - VENTANA_REBOTES_DIAS * 24 * 60 * 60 * 1000).toISOString();
+  const { data } = await supabaseAdmin
+    .from("tandas_envio_items")
+    .select("resend_estado")
+    .eq("estado", "enviado")
+    .gte("enviado_en", desde)
+    .in("resend_estado", ["entregado", "rebotado", "quejado"]);
+  const conocidos = data ?? [];
+
+  const quejas = conocidos.filter((f) => f.resend_estado === "quejado").length;
+  if (quejas > 0) {
+    return `Envío frenado: ${quejas} queja(s) de spam en los últimos ${VENTANA_REBOTES_DIAS} días. Revisar en Envíos activos antes de seguir mandando.`;
+  }
+
+  const rebotes = conocidos.filter((f) => f.resend_estado === "rebotado").length;
+  if (conocidos.length < MUESTRA_MINIMA_TASA_REBOTE) return null;
+  const tasa = rebotes / conocidos.length;
+  if (tasa <= TASA_REBOTE_MAXIMA) return null;
+  return `Envío frenado: ${rebotes}/${conocidos.length} mails rebotaron en los últimos ${VENTANA_REBOTES_DIAS} días (${Math.round(tasa * 100)}%, máximo ${Math.round(TASA_REBOTE_MAXIMA * 100)}%). Revisar la base antes de seguir mandando.`;
+}
+
 function topeDiarioHoy(hoy: string): number {
   const aplicable = [...TOPE_DIARIO].reverse().find((f) => f.desde <= hoy);
   return aplicable ? aplicable.tope : TOPE_DIARIO_ESTABLE;
@@ -86,6 +118,11 @@ export async function POST(req: NextRequest) {
   const hoyISO = ahora.toISOString().slice(0, 10);
   const inicioHoy = `${hoyISO}T00:00:00.000Z`;
   const tope = topeDiarioHoy(hoyISO);
+
+  const motivoFreno = await motivoFrenoPorRebotes(ahora);
+  if (motivoFreno) {
+    return NextResponse.json({ error: motivoFreno }, { status: 429 });
+  }
 
   const [{ count: yaEnviadosHoy }, { data: ultimoItem }] = await Promise.all([
     supabaseAdmin
