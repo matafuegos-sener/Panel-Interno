@@ -38,6 +38,9 @@ export default function ContactoPanel({ unificado, onClose }: { unificado: Conta
   const [nombreContacto, setNombreContacto] = useState("");
   const [email, setEmail] = useState("");
   const [guardandoContacto, setGuardandoContacto] = useState(false);
+  const [llamadaRealizada, setLlamadaRealizada] = useState(unificado.llamadaRealizada);
+  const [llamadaRealizadaEn, setLlamadaRealizadaEn] = useState(unificado.llamadaRealizadaEn);
+  const [marcandoLlamada, setMarcandoLlamada] = useState(false);
 
   const [mostrarInfo, setMostrarInfo] = useState(false);
 
@@ -55,6 +58,8 @@ export default function ContactoPanel({ unificado, onClose }: { unificado: Conta
         setInteracciones(data.interacciones ?? []);
         setAcciones(data.acciones ?? []);
         setCamposExtra(data.fila ?? null);
+        setLlamadaRealizada(Boolean(data.fila?.llamada_realizada));
+        setLlamadaRealizadaEn(data.fila?.llamada_realizada_en ?? null);
         if (!nombreContactoInicializado.current) {
           setNombreContacto(data.fila?.contacto ?? "");
           // columna real difiere entre tablas -- ver PATCH en
@@ -69,6 +74,25 @@ export default function ContactoPanel({ unificado, onClose }: { unificado: Conta
     cargarHistorial();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, tabla]);
+
+  // Registra que se llamó -- de un solo sentido, ver comentario en
+  // /api/admin/crm/contactos/[id]/estado (PATCH ignora `false`).
+  async function marcarLlamada() {
+    if (llamadaRealizada || marcandoLlamada) return;
+    setMarcandoLlamada(true);
+    const res = await fetch(`/api/admin/crm/contactos/${id}/estado`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tabla, llamada_realizada: true }),
+    });
+    setMarcandoLlamada(false);
+    if (!res.ok) {
+      window.alert("No se pudo registrar la llamada. Probá de nuevo.");
+      return;
+    }
+    setLlamadaRealizada(true);
+    setLlamadaRealizadaEn(new Date().toISOString());
+  }
 
   async function guardarContacto() {
     setGuardandoContacto(true);
@@ -162,8 +186,10 @@ export default function ContactoPanel({ unificado, onClose }: { unificado: Conta
               whatsappEnviado={unificado.whatsappEnviado}
               whatsappEnviadoEn={unificado.whatsappEnviadoEn}
               whatsappSinWa={unificado.whatsappSinWa}
-              llamadaRealizada={unificado.llamadaRealizada}
-              llamadaRealizadaEn={unificado.llamadaRealizadaEn}
+              llamadaRealizada={llamadaRealizada}
+              llamadaRealizadaEn={llamadaRealizadaEn}
+              onMarcarLlamada={marcarLlamada}
+              marcandoLlamada={marcandoLlamada}
             />
           </div>
         </div>

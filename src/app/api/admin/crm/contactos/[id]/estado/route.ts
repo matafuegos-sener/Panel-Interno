@@ -34,6 +34,12 @@ export async function PATCH(
     update.mail_enviado = body.mail_enviado;
     update.mail_enviado_en = body.mail_enviado ? ahora : null;
   }
+  // Llamada: solo se puede marcar, nunca desmarcar -- una vez registrada
+  // queda como constancia de que se llamó. `false` se ignora a propósito.
+  if (body.llamada_realizada === true) {
+    update.llamada_realizada = true;
+    update.llamada_realizada_en = ahora;
+  }
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "Nada para actualizar" }, { status: 400 });
