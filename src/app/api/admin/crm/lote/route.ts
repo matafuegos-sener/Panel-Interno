@@ -4,13 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { Contacto, TablaOrigen } from "@/data/crm";
 import { LeadBase } from "@/data/leadsBase";
 import { AtajoCrm, ContactoUnificado, unificarDesdeContactos, unificarDesdeTracking } from "@/data/crmUnificado";
-
-const TAMANO_PAGINA = 1000;
-// Tope de seguridad, no un límite de producto -- hoy la base real (~9.500
-// filas en leads_base) entra cómoda. Filtrar por criterio sigue siendo lo
-// rápido (subconjuntos chicos); esto solo evita un loop sin fin si alguna
-// vez la base crece de forma descontrolada con el filtro en "Todos".
-const MAX_FILAS_POR_TABLA = 15000;
+import { buscarContactosPorFiltro } from "@/lib/contactosLote";
 
 const LIMITE_ACTIVIDAD_RECIENTE = 10;
 // Buffer de interacciones a mirar hacia atrás para armar "Actividad
@@ -48,61 +42,22 @@ export async function GET(req: NextRequest) {
   const whatsappEnviado = searchParams.get("whatsapp_enviado") || "";
   const llamadaRealizada = searchParams.get("llamada_realizada") || "";
   const busqueda = searchParams.get("busqueda")?.trim() || "";
-  // "activo" ya no es solo el flag guardado -- un contacto vendido
-  // (0010_vigencia_activo.sql) deja de ser activo solo cuando pasa
-  // `vigencia_hasta`, sin que ningún cron lo tenga que apagar.
-  const hoy = new Date().toISOString().slice(0, 10);
 
-  const contactos: Contacto[] = [];
-  for (let desde = 0; desde < MAX_FILAS_POR_TABLA; desde += TAMANO_PAGINA) {
-    let query = supabaseAdmin.from("contactos").select("*").range(desde, desde + TAMANO_PAGINA - 1);
-    if (categoria) query = query.eq("categoria", categoria);
-    if (estadoCrm) query = query.eq("estado_crm", estadoCrm);
-    if (rubros.length > 0) query = query.in("tipo_perfil", rubros);
-    if (tier) query = query.eq("tier", tier);
-    if (activo === "si") query = query.eq("activo", true).or(`vigencia_hasta.is.null,vigencia_hasta.gte.${hoy}`);
-    // "no" incluye NULL/false y también vencido: en leads_base
-    // (0006_uniformar_base.sql) `activo` arranca sin valor hasta que se
-    // marca solo, y un contacto vendido hace más de un año vuelve a ser
-    // inactivo aunque el flag siga en true.
-    if (activo === "no") query = query.or(`activo.eq.false,activo.is.null,vigencia_hasta.lt.${hoy}`);
-    if (mailEnviado) query = query.eq("mail_enviado", mailEnviado === "si");
-    if (whatsappEnviado) query = query.eq("whatsapp_enviado", whatsappEnviado === "si");
-    if (llamadaRealizada) query = query.eq("llamada_realizada", llamadaRealizada === "si");
-    if (busqueda) query = query.or(`razon_social.ilike.%${busqueda}%,nombre_comercial.ilike.%${busqueda}%`);
-
-    const { data, error } = await query;
-    if (error) {
-      return NextResponse.json({ error: `contactos: ${error.message}` }, { status: 500 });
-    }
-    contactos.push(...data);
-    if (data.length < TAMANO_PAGINA) break;
+  const resultado = await buscarContactosPorFiltro({
+    categoria,
+    estadoCrm,
+    rubros,
+    tier,
+    activo,
+    mailEnviado,
+    whatsappEnviado,
+    llamadaRealizada,
+    busqueda,
+  });
+  if ("error" in resultado) {
+    return NextResponse.json({ error: resultado.error }, { status: 500 });
   }
-
-  const tracking: LeadBase[] = [];
-  for (let desde = 0; desde < MAX_FILAS_POR_TABLA; desde += TAMANO_PAGINA) {
-    let query = supabaseAdmin.from("leads_base").select("*").range(desde, desde + TAMANO_PAGINA - 1);
-    if (categoria) query = query.eq("categoria", categoria);
-    if (estadoCrm) query = query.eq("estado_crm", estadoCrm);
-    if (rubros.length > 0) query = query.in("rubro", rubros);
-    if (tier) query = query.eq("tier", tier);
-    if (activo === "si") query = query.eq("activo", true).or(`vigencia_hasta.is.null,vigencia_hasta.gte.${hoy}`);
-    if (activo === "no") query = query.or(`activo.eq.false,activo.is.null,vigencia_hasta.lt.${hoy}`);
-    if (mailEnviado) query = query.eq("mail_enviado", mailEnviado === "si");
-    if (whatsappEnviado) query = query.eq("whatsapp_enviado", whatsappEnviado === "si");
-    if (llamadaRealizada) query = query.eq("llamada_realizada", llamadaRealizada === "si");
-    if (busqueda) query = query.ilike("nombre", `%${busqueda}%`);
-
-    const { data, error } = await query;
-    if (error) {
-      return NextResponse.json({ error: `leads_base: ${error.message}` }, { status: 500 });
-    }
-    tracking.push(...data);
-    if (data.length < TAMANO_PAGINA) break;
-  }
-
-  const unificados = [...contactos.map(unificarDesdeContactos), ...tracking.map(unificarDesdeTracking)];
-  return NextResponse.json(unificados, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json(resultado, { headers: { "Cache-Control": "no-store" } });
 }
 
 interface ReferenciaContacto {

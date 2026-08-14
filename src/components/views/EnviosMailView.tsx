@@ -6,6 +6,7 @@ import { CATEGORIA_PROSPECTO_CERO } from "@/data/crm";
 import { MensajePredefinido } from "@/data/mensajes";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
 import { reemplazarVariables } from "@/lib/plantillas";
+import { fmtFecha } from "@/lib/fechas";
 import FiltrosContactos from "@/components/FiltrosContactos";
 import { fieldLabelClass, fieldInputClass, btnPrimaryClass, btnSecondaryClass, panelCardClass } from "@/components/formStyles";
 
@@ -22,6 +23,16 @@ const FIRMA_DEFAULT = "Matafuegos Sener — Insumos y servicios contra incendios
 const OPT_OUT_TEXTO = "Si preferís no recibir más este tipo de mensajes, respondé este mail con la palabra BAJA y te sacamos de la lista.";
 const TAMANO_TANDA_DEFAULT = 15;
 const TAMANO_TANDA_MAX = 25;
+
+interface CampanaMail {
+  id: string;
+  estado: "activa" | "completada" | "cancelada";
+  asunto: string;
+  cuerpo: string;
+  creado_en: string;
+  ultima_corrida_en: string | null;
+  total_enviados: number;
+}
 
 export default function EnviosMailView() {
   const { opciones, error, buscarLote } = useContactosUnificados();
@@ -43,6 +54,22 @@ export default function EnviosMailView() {
 
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState<{ enviados: number; fallidos: { motivo: string }[] } | null>(null);
+
+  const [campana, setCampana] = useState<CampanaMail | null>(null);
+  const [cargandoCampana, setCargandoCampana] = useState(true);
+  const [iniciandoCampana, setIniciandoCampana] = useState(false);
+
+  function cargarCampana() {
+    setCargandoCampana(true);
+    fetch("/api/admin/mail/campana")
+      .then((r) => r.json())
+      .then((data) => setCampana(data?.campana ?? null))
+      .finally(() => setCargandoCampana(false));
+  }
+
+  useEffect(() => {
+    cargarCampana();
+  }, []);
 
   useEffect(() => {
     fetch("/api/admin/mensajes?canal=mail")
@@ -140,6 +167,38 @@ export default function EnviosMailView() {
     }
     setResultado(data);
     await aplicarFiltro();
+  }
+
+  // Campaña automática: guarda el filtro + mensaje ya armados (mismo cuerpo
+  // final que manda el botón "Enviar" de abajo, con firma + opt-out) y el
+  // cron diario (/api/cron/mail-diario) la va completando solo, un poco por
+  // día, respetando el tope y el freno por rebotes -- ver build-log
+  // 2026-08-14. No hace falta tener la pestaña abierta.
+  async function iniciarCampana() {
+    setIniciandoCampana(true);
+    const res = await fetch("/api/admin/mail/campana", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filtro,
+        asunto,
+        cuerpo: `${cuerpo}\n\n${firma}\n\n${OPT_OUT_TEXTO}`,
+      }),
+    });
+    const data = await res.json();
+    setIniciandoCampana(false);
+    if (!res.ok) {
+      window.alert(`Error: ${data.error}`);
+      return;
+    }
+    setCampana(data.campana);
+  }
+
+  async function cancelarCampana() {
+    if (!campana) return;
+    if (!window.confirm("¿Cancelar la campaña automática? Lo que ya se mandó queda mandado, pero no va a seguir sola.")) return;
+    await fetch(`/api/admin/mail/campana?id=${campana.id}`, { method: "DELETE" });
+    setCampana(null);
   }
 
   const puedeEnviar = asunto.trim() && cuerpo.trim() && !enviando;
@@ -273,6 +332,34 @@ export default function EnviosMailView() {
             {resultado.fallidos.length > 0 && ` — ${resultado.fallidos.length} no se pudieron enviar`}
           </p>
         )}
+
+        <div className="pt-4 border-t border-[var(--color-border-subtle)]">
+          <h3 className="type-label text-[var(--color-text-muted)] mb-2">Campaña automática</h3>
+          {cargandoCampana && <p className="text-sm text-[var(--color-text-muted)]">Cargando…</p>}
+          {!cargandoCampana && !campana && (
+            <>
+              <p className="text-sm text-[var(--color-text-muted)] mb-3">
+                Manda el filtro y el mensaje de arriba solos, un poco por día, hasta completar a todos los elegibles — respeta el tope diario y el freno
+                por rebotes/quejas sin que haga falta tener esta pantalla abierta.
+              </p>
+              <button type="button" onClick={iniciarCampana} disabled={!puedeEnviar || iniciandoCampana || !stats?.elegibles} className={btnPrimaryClass}>
+                {iniciandoCampana ? "Iniciando…" : "Iniciar envío automático hasta completar"}
+              </button>
+            </>
+          )}
+          {!cargandoCampana && campana && (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm text-[var(--color-text-muted)]">
+                Campaña activa — <strong className="text-[var(--color-brand-dark)]">{campana.total_enviados}</strong> enviado
+                {campana.total_enviados === 1 ? "" : "s"} hasta ahora
+                {campana.ultima_corrida_en && <> — última corrida {fmtFecha(campana.ultima_corrida_en)}</>}
+              </p>
+              <button type="button" onClick={cancelarCampana} className={btnSecondaryClass}>
+                Cancelar campaña
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
