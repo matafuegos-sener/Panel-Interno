@@ -23,7 +23,7 @@ async function traerFilas(tabla: TablaOrigen, ids: string[]): Promise<Map<string
   if (ids.length === 0) return mapa;
   const { data } = await supabaseAdmin
     .from(tabla)
-    .select(`id, mail_enviado, categoria, ${COLUMNA_MAIL[tabla]}, ${COLUMNAS_NOMBRE[tabla]}`)
+    .select(`id, mail_enviado, mail_bloqueado, categoria, ${COLUMNA_MAIL[tabla]}, ${COLUMNAS_NOMBRE[tabla]}`)
     .in("id", ids);
   (data ?? []).forEach((fila) => {
     const filaTipada = fila as unknown as FilaContacto;
@@ -137,6 +137,15 @@ export async function ejecutarEnvioMail(params: {
     if (fila.mail_enviado) {
       fallidos.push({ id: item.id, tabla, motivo: "Ya se le había enviado" });
       await marcarItem(item, "fallido", "Ya se le había enviado");
+      continue;
+    }
+    // Casilla bloqueada por rebote duro o queja de spam (ver
+    // webhooks/resend/route.ts) -- barrera dura del lado servidor, aunque el
+    // filtro de origen (EnviosMailView.tsx / mail-diario/route.ts) no lo
+    // haya excluido.
+    if (fila.mail_bloqueado) {
+      fallidos.push({ id: item.id, tabla, motivo: "Casilla de mail bloqueada (rebote o spam)" });
+      await marcarItem(item, "fallido", "Casilla de mail bloqueada (rebote o spam)");
       continue;
     }
     // Resguardo del lado del servidor -- nunca mandar un mail masivo a un

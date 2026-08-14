@@ -64,6 +64,11 @@ export interface ContactoUnificado {
   whatsappSinWa: boolean;
   mailEnviado: boolean;
   mailEnviadoEn: string | null;
+  // Casilla bloqueada por rebote duro (Permanent) o queja de spam -- se
+  // marca sola desde el webhook de Resend (webhooks/resend/route.ts), nunca
+  // a mano. Una vez en true, `enviarTanda`/`mail-diario` nunca vuelven a
+  // mandarle nada a ese contacto, sin importar qué filtro lo traiga.
+  mailBloqueado: boolean;
   // Sin consumidor todavía -- no hay ninguna pantalla que marque una llamada
   // como hecha (0011_etapa_prospecto.sql la agregó vacía, a propósito). El
   // badge/filtro existen para cuando se construya ese flujo.
@@ -98,6 +103,7 @@ export function unificarDesdeContactos(c: Contacto): ContactoUnificado {
     whatsappSinWa: c.whatsapp_sin_wa,
     mailEnviado: c.mail_enviado,
     mailEnviadoEn: c.mail_enviado_en,
+    mailBloqueado: c.mail_bloqueado,
     llamadaRealizada: c.llamada_realizada,
     llamadaRealizadaEn: c.llamada_realizada_en,
   };
@@ -126,6 +132,7 @@ export function unificarDesdeTracking(l: LeadBase): ContactoUnificado {
     whatsappSinWa: l.whatsapp_sin_wa,
     mailEnviado: l.mail_enviado,
     mailEnviadoEn: l.mail_enviado_en,
+    mailBloqueado: l.mail_bloqueado,
     llamadaRealizada: l.llamada_realizada,
     llamadaRealizadaEn: l.llamada_realizada_en,
   };

@@ -92,7 +92,7 @@ export default function EnviosMailView() {
   // arriba ni se muestra en esta vista por eso -- no tiene sentido ofrecer
   // una combinación que siempre da cero resultados.
   function elegiblesDe(lote: ContactoUnificado[]) {
-    return lote.filter((r) => r.email && !r.mailEnviado && r.categoria === CATEGORIA_PROSPECTO_CERO);
+    return lote.filter((r) => r.email && !r.mailEnviado && !r.mailBloqueado && r.categoria === CATEGORIA_PROSPECTO_CERO);
   }
 
   function elegiblesActuales() {

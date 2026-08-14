@@ -16,7 +16,7 @@ const EVENTO_A_ESTADO: Record<string, "entregado" | "rebotado" | "quejado"> = {
 
 interface ResendWebhookPayload {
   type: string;
-  data: { email_id?: string };
+  data: { email_id?: string; bounce?: { type?: string } };
 }
 
 export async function POST(req: NextRequest) {
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   // rebotado/quejado si por algún motivo llegan fuera de orden.
   const { data: actual } = await supabaseAdmin
     .from("tandas_envio_items")
-    .select("resend_estado")
+    .select("resend_estado, contacto_id, tabla_origen")
     .eq("resend_id", emailId)
     .maybeSingle();
   if (actual?.resend_estado === "rebotado" || actual?.resend_estado === "quejado") {
@@ -63,5 +63,19 @@ export async function POST(req: NextRequest) {
   }
 
   await supabaseAdmin.from("tandas_envio_items").update({ resend_estado: nuevoEstado }).eq("resend_id", emailId);
+
+  // Bloquea la casilla para que no se le vuelva a mandar (ver conversación
+  // 2026-08-14) -- solo en rebote duro (Permanent) o queja de spam. Un
+  // rebote Transient (buzón lleno, mensaje muy pesado, etc.) no bloquea:
+  // puede resolverse solo, bloquear ahí sería definitivo por un problema
+  // temporal.
+  const debeBloquear = nuevoEstado === "quejado" || (nuevoEstado === "rebotado" && evento.data.bounce?.type === "Permanent");
+  if (debeBloquear && actual?.contacto_id && actual?.tabla_origen) {
+    await supabaseAdmin
+      .from(actual.tabla_origen)
+      .update({ mail_bloqueado: true, mail_bloqueado_en: new Date().toISOString() })
+      .eq("id", actual.contacto_id);
+  }
+
   return NextResponse.json({ ok: true });
 }

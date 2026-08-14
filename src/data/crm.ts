@@ -28,6 +28,8 @@ export interface Contacto {
   llamada_realizada_en: string | null;
   mail_enviado: boolean;
   mail_enviado_en: string | null;
+  mail_bloqueado: boolean;
+  mail_bloqueado_en: string | null;
   created_at: string;
   // Uniformadas con leads_base en 0006_uniformar_base.sql -- mismo campo,
   // exista o no el dato según de dónde vino el contacto.

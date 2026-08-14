@@ -38,5 +38,7 @@ export interface LeadBase {
   whatsapp_sin_wa: boolean;
   mail_enviado: boolean;
   mail_enviado_en: string | null;
+  mail_bloqueado: boolean;
+  mail_bloqueado_en: string | null;
   created_at: string;
 }

@@ -65,9 +65,9 @@ export async function GET(req: NextRequest) {
   }
 
   // Misma regla de elegibilidad que EnviosMailView.tsx: frío, con email,
-  // todavía sin mail enviado -- nunca un envío masivo a alguien que ya se
-  // está trabajando.
-  const elegibles = lote.filter((c) => c.email && !c.mailEnviado && c.categoria === CATEGORIA_PROSPECTO_CERO);
+  // todavía sin mail enviado, casilla no bloqueada por rebote/spam -- nunca
+  // un envío masivo a alguien que ya se está trabajando o que ya rechazó.
+  const elegibles = lote.filter((c) => c.email && !c.mailEnviado && !c.mailBloqueado && c.categoria === CATEGORIA_PROSPECTO_CERO);
   if (elegibles.length === 0) {
     await supabaseAdmin.from("campanas_mail").update({ estado: "completada" }).eq("id", campana.id);
     return NextResponse.json({ motivo: "Campaña completada -- no quedan contactos elegibles" });
