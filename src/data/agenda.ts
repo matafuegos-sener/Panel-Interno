@@ -1,10 +1,14 @@
 import { TablaOrigen } from "./crm";
 
 // "seguimiento" es la etiqueta de lo que viene automático desde `acciones`
-// (no tiene tipo propio en esa tabla, es siempre un seguimiento de CRM). Las
-// otras cuatro son las que se eligen al cargar una actividad a mano.
+// (no tiene tipo propio en esa tabla, es siempre un seguimiento de CRM).
+// "presupuesto_web" es automático también -- lo crea el calculador de
+// casa-sener (ver /api/public/agenda/presupuesto) -- pero vive en
+// `agenda_eventos` junto con lo cargado a mano, no en `acciones`. Las otras
+// cuatro son las que se eligen al cargar una actividad a mano.
 export const TIPO_AGENDA_LABEL: Record<string, string> = {
   seguimiento: "Seguimiento CRM",
+  presupuesto_web: "Presupuesto web",
   llamada: "Llamada",
   reunion: "Reunión",
   tarea: "Tarea",

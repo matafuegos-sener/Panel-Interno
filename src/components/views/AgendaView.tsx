@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bell, CalendarClock, CheckSquare, Phone, RefreshCw, Users } from "lucide-react";
+import { Bell, CalendarClock, CheckSquare, Globe, Phone, RefreshCw, Users } from "lucide-react";
 import { EventoAgenda, TIPO_AGENDA_LABEL, TipoAgendaManual } from "@/data/agenda";
 import { Contacto } from "@/data/crm";
 import { LeadBase } from "@/data/leadsBase";
@@ -53,6 +53,7 @@ const ICONO_TIPO: Record<string, typeof Phone> = {
   tarea: CheckSquare,
   recordatorio: Bell,
   seguimiento: RefreshCw,
+  presupuesto_web: Globe,
 };
 
 function IconoTipo({ tipo, size = 12 }: { tipo: string; size?: number }) {
@@ -60,9 +61,20 @@ function IconoTipo({ tipo, size = 12 }: { tipo: string; size?: number }) {
   return <Icono size={size} strokeWidth={2.25} className="shrink-0" />;
 }
 
+// Un pedido de presupuesto de casa-sener se tiene que poder distinguir de
+// un vistazo del resto de la agenda -- por eso lleva su propio color (azul)
+// en vez del gris/rojo neutro que usa todo lo demás.
+function esWeb(tipo: string) {
+  return tipo === "presupuesto_web";
+}
+
 function badgeTipo(tipo: string) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-[var(--color-border)] text-[var(--color-text-muted)]">
+    <span
+      className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border ${
+        esWeb(tipo) ? "border-blue-300 text-blue-700 bg-blue-50" : "border-[var(--color-border)] text-[var(--color-text-muted)]"
+      }`}
+    >
       <IconoTipo tipo={tipo} />
       {TIPO_AGENDA_LABEL[tipo] ?? tipo}
     </span>
@@ -288,7 +300,11 @@ function FilaEvento({
   return (
     <div
       className={`p-3 flex items-start gap-3 rounded-2xl shadow-xl border ${
-        ev.completada ? "bg-green-50 border-green-200" : "bg-[var(--color-surface)] border-[var(--color-border)]"
+        ev.completada
+          ? "bg-green-50 border-green-200"
+          : esWeb(ev.tipo)
+          ? "bg-blue-50 border-blue-200"
+          : "bg-[var(--color-surface)] border-[var(--color-border)]"
       }`}
     >
       <input
@@ -363,6 +379,8 @@ function VistaSemana({
                   className={`text-left text-xs p-2 rounded-lg border transition-colors flex flex-col gap-0.5 ${
                     ev.completada
                       ? "bg-green-50 border-green-200"
+                      : esWeb(ev.tipo)
+                      ? "bg-blue-50 border-blue-200 hover:border-blue-400"
                       : "bg-[var(--color-bg-warm)] border-[var(--color-border-subtle)] hover:border-[var(--color-brand-red)]"
                   }`}
                 >
@@ -426,7 +444,7 @@ function VistaMes({
                   <span
                     key={`${ev.origen}-${ev.id}`}
                     className={`block text-[10px] truncate px-1 py-0.5 rounded ${
-                      ev.completada ? "bg-green-50" : "bg-[var(--color-bg-warm)]"
+                      ev.completada ? "bg-green-50" : esWeb(ev.tipo) ? "bg-blue-100" : "bg-[var(--color-bg-warm)]"
                     }`}
                   >
                     {ev.nota}
@@ -664,8 +682,11 @@ function PanelDetalle({
     <div className={`${panelCardClass} p-6 sm:p-8`}>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         {badgeTipo(evento.tipo)}
-        {evento.origen === "manual" && (
+        {evento.origen === "manual" && !esWeb(evento.tipo) && (
           <span className="text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">Cargado a mano</span>
+        )}
+        {esWeb(evento.tipo) && (
+          <span className="text-[10px] uppercase tracking-wide text-blue-700">Pedido desde la web</span>
         )}
       </div>
       <p className="text-sm text-[var(--color-brand-dark)] mb-1 capitalize">
