@@ -11,6 +11,7 @@ import EnviosMailView from "@/components/views/EnviosMailView";
 import WhatsappView from "@/components/views/WhatsappView";
 import BaseTrackingView from "@/components/views/BaseTrackingView";
 import EnviosActivosView from "@/components/views/EnviosActivosView";
+import MetricasView from "@/components/views/MetricasView";
 import { useTandasEnvio } from "@/lib/useTandasEnvio";
 
 type NavItem = { id: string; label: string; sub?: boolean };
@@ -26,6 +27,7 @@ const MODULO_WHATSAPP: NavItem[] = [
   { id: "mensajes-whatsapp", label: "Mensajes predefinidos", sub: true },
 ];
 const ITEM_BASE_TRACKING: NavItem = { id: "base-tracking", label: "Base Tracking" };
+const ITEM_METRICAS: NavItem = { id: "metricas", label: "Web" };
 
 export default function AdminShell() {
   const router = useRouter();
@@ -97,6 +99,9 @@ export default function AdminShell() {
           {renderGrupo("Bases")}
           {renderItem(ITEM_BASE_TRACKING)}
 
+          {renderGrupo("Métricas")}
+          {renderItem(ITEM_METRICAS)}
+
           {renderGrupo("Envíos activos")}
           {renderItem(itemEnviosMail)}
           {renderItem(itemEnviosWhatsapp)}
@@ -122,6 +127,7 @@ export default function AdminShell() {
         {activo === "whatsapp" && <WhatsappView />}
         {activo === "mensajes-whatsapp" && <MensajesPredefinidosView canal="whatsapp" />}
         {activo === "base-tracking" && <BaseTrackingView />}
+        {activo === "metricas" && <MetricasView />}
         {activo === "envios-activos-mail" && <EnviosActivosView tipo="mail" />}
         {activo === "envios-activos-whatsapp" && <EnviosActivosView tipo="whatsapp" />}
       </main>
