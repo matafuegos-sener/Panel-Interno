@@ -5,6 +5,7 @@ import { ContactoUnificado, FILTRO_VACIO, FiltroContactosState } from "@/data/cr
 import { CATEGORIA_PROSPECTO_CERO } from "@/data/crm";
 import { MensajePredefinido } from "@/data/mensajes";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
+import { useBases } from "@/lib/useBases";
 import { reemplazarVariables } from "@/lib/plantillas";
 import { fmtFecha } from "@/lib/fechas";
 import FiltrosContactos from "@/components/FiltrosContactos";
@@ -36,6 +37,7 @@ interface CampanaMail {
 
 export default function EnviosMailView() {
   const { opciones, error, buscarLote } = useContactosUnificados();
+  const { bases } = useBases();
   const [filtro, setFiltro] = useState<FiltroContactosState>(FILTRO_VACIO);
   const [loteActual, setLoteActual] = useState<ContactoUnificado[] | null>(null);
   const [cargandoFiltro, setCargandoFiltro] = useState(false);
@@ -220,10 +222,12 @@ export default function EnviosMailView() {
         <h3 className="type-label text-[var(--color-text-muted)] mb-3">Filtro de contactos</h3>
         <FiltrosContactos
           opciones={opciones ?? { categorias: [], rubros: [], tiers: [] }}
+          bases={bases}
           value={filtro}
           onChange={setFiltro}
           onFiltrar={aplicarFiltro}
           mostrarCategoria={false}
+          baseAlPrincipio
         />
         {cargandoFiltro && <p className="text-sm text-[var(--color-text-muted)] mt-3">Buscando…</p>}
         {!cargandoFiltro && stats && (

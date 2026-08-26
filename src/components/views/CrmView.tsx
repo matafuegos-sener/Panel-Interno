@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Contacto } from "@/data/crm";
 import { AtajoCrm, CATEGORIA_LABEL, ContactoUnificado, ESTADO_CRM_LABEL, FILTRO_VACIO, FiltroContactosState, unificarDesdeContactos } from "@/data/crmUnificado";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
+import { useBases } from "@/lib/useBases";
+import { Base } from "@/data/bases";
 import FiltrosContactos from "@/components/FiltrosContactos";
 import Modal from "@/components/Modal";
 import EnvioBadges from "@/components/EnvioBadges";
@@ -21,6 +23,7 @@ const ATAJOS: { valor: AtajoCrm; label: string }[] = [
 
 export default function CrmView() {
   const { opciones, error, buscarLote, buscarAtajo, recargarOpciones } = useContactosUnificados();
+  const { bases } = useBases();
   const [filtro, setFiltro] = useState<FiltroContactosState>(FILTRO_VACIO);
   const [atajoActivo, setAtajoActivo] = useState<AtajoCrm | null>(null);
   const [lote, setLote] = useState<ContactoUnificado[] | null>(null);
@@ -73,10 +76,12 @@ export default function CrmView() {
       <div className={`${panelCardClass} p-4 mb-4`}>
         <FiltrosContactos
           opciones={opciones ?? { categorias: [], rubros: [], tiers: [] }}
+          bases={bases}
           value={filtro}
           onChange={setFiltro}
           onFiltrar={traerLote}
           mostrarBusqueda
+          mostrarActivo={false}
         />
       </div>
 
@@ -196,6 +201,7 @@ export default function CrmView() {
 
       <Modal open={nuevoAbierto} onClose={() => setNuevoAbierto(false)}>
         <PanelNuevoContacto
+          bases={bases}
           onCreado={(unificado) => {
             setNuevoAbierto(false);
             setSeleccionado(unificado);
@@ -214,13 +220,16 @@ export default function CrmView() {
 // Al crear, abre directo el ContactoPanel del contacto nuevo para que se
 // pueda registrar la interacción de una.
 function PanelNuevoContacto({
+  bases,
   onCreado,
   onCancelar,
 }: {
+  bases: Base[];
   onCreado: (u: ContactoUnificado) => void;
   onCancelar: () => void;
 }) {
   const [nombre, setNombre] = useState("");
+  const [baseId, setBaseId] = useState("");
   const [rubro, setRubro] = useState("");
   const [telefono, setTelefono] = useState("");
   const [email, setEmail] = useState("");
@@ -228,12 +237,12 @@ function PanelNuevoContacto({
   const [guardando, setGuardando] = useState(false);
 
   async function guardar() {
-    if (!nombre.trim()) return;
+    if (!nombre.trim() || !baseId) return;
     setGuardando(true);
     const res = await fetch("/api/admin/crm/contactos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nombre: nombre.trim(), rubro, telefono, email, personaContacto }),
+      body: JSON.stringify({ nombre: nombre.trim(), baseId, rubro, telefono, email, personaContacto }),
     });
     const data = await res.json();
     setGuardando(false);
@@ -256,6 +265,15 @@ function PanelNuevoContacto({
           <input className={fieldInputClass} value={nombre} onChange={(e) => setNombre(e.target.value)} required />
         </label>
         <label>
+          <span className={fieldLabelClass}>Base</span>
+          <select className={fieldInputClass} value={baseId} onChange={(e) => setBaseId(e.target.value)} required>
+            <option value="" disabled>Elegí una base…</option>
+            {bases.map((b) => (
+              <option key={b.id} value={b.id}>{b.nombre}</option>
+            ))}
+          </select>
+        </label>
+        <label>
           <span className={fieldLabelClass}>Rubro</span>
           <input className={fieldInputClass} value={rubro} onChange={(e) => setRubro(e.target.value)} placeholder="Ej: consorcio, geriátrico…" />
         </label>
@@ -275,7 +293,7 @@ function PanelNuevoContacto({
         </label>
 
         <div className="flex gap-3 pt-2 border-t border-[var(--color-border-subtle)]">
-          <button type="button" onClick={guardar} disabled={!nombre.trim() || guardando} className={btnPrimaryClass}>
+          <button type="button" onClick={guardar} disabled={!nombre.trim() || !baseId || guardando} className={btnPrimaryClass}>
             {guardando ? "Guardando…" : "Guardar y abrir"}
           </button>
           <button type="button" onClick={onCancelar} className={btnSecondaryClass}>

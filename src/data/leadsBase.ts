@@ -41,4 +41,5 @@ export interface LeadBase {
   mail_bloqueado: boolean;
   mail_bloqueado_en: string | null;
   created_at: string;
+  base_id: string;
 }

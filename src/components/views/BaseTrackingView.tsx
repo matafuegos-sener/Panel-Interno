@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Download, MoreVertical, X } from "lucide-react";
 import { LeadBase } from "@/data/leadsBase";
 import { CATEGORIA_LABEL, ESTADO_CRM_LABEL } from "@/data/crmUnificado";
+import { useBases } from "@/lib/useBases";
 import Modal from "@/components/Modal";
 import EnvioBadgesBase from "@/components/EnvioBadges";
 import { fmtFecha } from "@/lib/fechas";
@@ -70,12 +71,14 @@ function descargarCsv(filas: LeadBase[], rubro: string) {
 
 export default function BaseTrackingView() {
   const [opciones, setOpciones] = useState<Opciones | null>(null);
+  const { bases } = useBases();
   const [rubro, setRubro] = useState("");
   const [tier, setTier] = useState("");
   const [medio, setMedio] = useState("");
   const [mailEnviado, setMailEnviado] = useState("");
   const [whatsappEnviado, setWhatsappEnviado] = useState("");
   const [llamadaRealizada, setLlamadaRealizada] = useState("");
+  const [baseId, setBaseId] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [resultado, setResultado] = useState<LeadBase[] | null>(null);
   const [cargandoLote, setCargandoLote] = useState(false);
@@ -118,6 +121,7 @@ export default function BaseTrackingView() {
     setMailEnviado("");
     setWhatsappEnviado("");
     setLlamadaRealizada("");
+    setBaseId("");
     setBusqueda("");
   }
 
@@ -130,6 +134,7 @@ export default function BaseTrackingView() {
     if (mailEnviado) params.set("mail_enviado", mailEnviado);
     if (whatsappEnviado) params.set("whatsapp_enviado", whatsappEnviado);
     if (llamadaRealizada) params.set("llamada_realizada", llamadaRealizada);
+    if (baseId) params.set("base_id", baseId);
     if (busqueda.trim()) params.set("busqueda", busqueda.trim());
 
     const res = await fetch(`/api/admin/leads-base?${params.toString()}`);
@@ -212,6 +217,12 @@ export default function BaseTrackingView() {
             <option value="">Llamada — todas</option>
             <option value="si">Llamada realizada</option>
             <option value="no">Llamada no realizada</option>
+          </select>
+          <select className={selectClass} value={baseId} onChange={(e) => setBaseId(e.target.value)}>
+            <option value="">Base — todas</option>
+            {bases.map((b) => (
+              <option key={b.id} value={b.id}>{b.nombre}</option>
+            ))}
           </select>
           <button type="button" onClick={limpiarFiltro} className={`${btnSecondaryClass} ml-auto`}>
             Limpiar filtro

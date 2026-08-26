@@ -48,6 +48,7 @@ export interface Contacto {
   oneroso: string | null;
   sanciones: string | null;
   notas: string | null;
+  base_id: string;
 }
 
 // Tipos de interacción que además mueven la categoría del contacto (ver

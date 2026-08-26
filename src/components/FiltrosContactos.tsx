@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { CATEGORIA_LABEL, FILTRO_VACIO, FiltroContactosState } from "@/data/crmUnificado";
 import { OpcionesFiltro } from "@/lib/useContactosUnificados";
+import { Base } from "@/data/bases";
 import { btnPrimaryClass, btnSecondaryClass } from "@/components/formStyles";
 
 export { FILTRO_VACIO } from "@/data/crmUnificado";
@@ -14,11 +15,17 @@ const selectClass =
 
 interface Props {
   opciones: OpcionesFiltro;
+  bases: Base[];
   value: FiltroContactosState;
   onChange: (value: FiltroContactosState) => void;
   onFiltrar: () => void;
   mostrarBusqueda?: boolean;
   mostrarCategoria?: boolean;
+  // CRM no muestra Activo/Inactivo -- la Base ocupa ese lugar. Mail y
+  // WhatsApp mantienen Activo y suman la Base al principio del renglón 1
+  // (hay lugar de sobra ahí, ver CrmView/EnviosMailView/WhatsappView).
+  mostrarActivo?: boolean;
+  baseAlPrincipio?: boolean;
 }
 
 // Bloque de filtros compartido por CRM, Envío de mails y WhatsApp. El filtro
@@ -29,13 +36,34 @@ interface Props {
 // filtrar. El día que se sume operación en GBA, ahí sí pasa a ser un select
 // real. Las opciones de cada <select> llegan ya armadas del servidor
 // (/api/admin/crm/opciones) -- este componente no baja filas para calcularlas.
-export default function FiltrosContactos({ opciones, value, onChange, onFiltrar, mostrarBusqueda = false, mostrarCategoria = true }: Props) {
+export default function FiltrosContactos({
+  opciones,
+  bases,
+  value,
+  onChange,
+  onFiltrar,
+  mostrarBusqueda = false,
+  mostrarCategoria = true,
+  mostrarActivo = true,
+  baseAlPrincipio = false,
+}: Props) {
   const { categorias, rubros, tiers } = opciones;
+
+  const selectBase = (
+    <select className={selectClass} value={value.baseId} onChange={(e) => onChange({ ...value, baseId: e.target.value })}>
+      <option value="">Base — todas</option>
+      {bases.map((b) => (
+        <option key={b.id} value={b.id}>{b.nombre}</option>
+      ))}
+    </select>
+  );
 
   return (
     <div className="flex flex-col gap-2">
       {/* Renglón 1: nombre primero, filtros de siempre, "Filtrar" al final. */}
       <div className="flex flex-wrap items-center gap-2">
+        {baseAlPrincipio && selectBase}
+
         {mostrarBusqueda && (
           <input
             className={`${selectClass} flex-1 min-w-[160px]`}
@@ -69,11 +97,15 @@ export default function FiltrosContactos({ opciones, value, onChange, onFiltrar,
           <option value="CABA">Provincia — CABA</option>
         </select>
 
-        <select className={selectClass} value={value.activo} onChange={(e) => onChange({ ...value, activo: e.target.value as FiltroContactosState["activo"] })}>
-          <option value="">Todos</option>
-          <option value="si">Solo activos</option>
-          <option value="no">Solo inactivos</option>
-        </select>
+        {mostrarActivo ? (
+          <select className={selectClass} value={value.activo} onChange={(e) => onChange({ ...value, activo: e.target.value as FiltroContactosState["activo"] })}>
+            <option value="">Todos</option>
+            <option value="si">Solo activos</option>
+            <option value="no">Solo inactivos</option>
+          </select>
+        ) : (
+          selectBase
+        )}
 
         <button type="button" onClick={onFiltrar} className={`${btnPrimaryClass} ml-auto shrink-0`}>
           Filtrar

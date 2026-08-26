@@ -5,6 +5,7 @@ import { ContactoUnificado, FILTRO_VACIO, FiltroContactosState } from "@/data/cr
 import { CATEGORIA_PROSPECTO_CERO } from "@/data/crm";
 import { MensajePredefinido } from "@/data/mensajes";
 import { useContactosUnificados } from "@/lib/useContactosUnificados";
+import { useBases } from "@/lib/useBases";
 import FiltrosContactos from "@/components/FiltrosContactos";
 import { fieldLabelClass, fieldInputClass, btnPrimaryClass, panelCardClass } from "@/components/formStyles";
 
@@ -13,6 +14,7 @@ const TAMANO_TANDA_MAX = 25;
 
 export default function WhatsappView() {
   const { opciones, error, buscarLote } = useContactosUnificados();
+  const { bases } = useBases();
   const [filtro, setFiltro] = useState<FiltroContactosState>(FILTRO_VACIO);
   const [loteActual, setLoteActual] = useState<ContactoUnificado[] | null>(null);
   const [cargandoFiltro, setCargandoFiltro] = useState(false);
@@ -96,10 +98,12 @@ export default function WhatsappView() {
         <h3 className="type-label text-[var(--color-text-muted)] mb-3">Filtro de contactos</h3>
         <FiltrosContactos
           opciones={opciones ?? { categorias: [], rubros: [], tiers: [] }}
+          bases={bases}
           value={filtro}
           onChange={setFiltro}
           onFiltrar={aplicarFiltro}
           mostrarCategoria={false}
+          baseAlPrincipio
         />
         {cargandoFiltro && <p className="text-sm text-[var(--color-text-muted)] mt-3">Buscando…</p>}
         {!cargandoFiltro && stats && (

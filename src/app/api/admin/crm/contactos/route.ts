@@ -34,6 +34,10 @@ export async function POST(req: NextRequest) {
   if (!nombre) {
     return NextResponse.json({ error: "Falta el nombre" }, { status: 400 });
   }
+  const baseId = typeof body.baseId === "string" ? body.baseId.trim() : "";
+  if (!baseId) {
+    return NextResponse.json({ error: "Falta la base" }, { status: 400 });
+  }
 
   const { data, error } = await supabaseAdmin
     .from("contactos")
@@ -44,6 +48,7 @@ export async function POST(req: NextRequest) {
       mail_1: typeof body.email === "string" && body.email.trim() ? body.email.trim() : null,
       contacto: typeof body.personaContacto === "string" && body.personaContacto.trim() ? body.personaContacto.trim() : null,
       fuente: "manual",
+      base_id: baseId,
     })
     .select()
     .single();

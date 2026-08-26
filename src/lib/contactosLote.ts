@@ -20,6 +20,7 @@ export interface FiltroLote {
   whatsappEnviado?: string;
   llamadaRealizada?: string;
   busqueda?: string;
+  baseId?: string;
 }
 
 // Trae el lote filtrado ya armado en Supabase -- usado por /api/admin/crm/lote
@@ -39,6 +40,7 @@ export async function buscarContactosPorFiltro(filtro: FiltroLote): Promise<Cont
     whatsappEnviado = "",
     llamadaRealizada = "",
     busqueda = "",
+    baseId = "",
   } = filtro;
   const hoy = new Date().toISOString().slice(0, 10);
 
@@ -59,6 +61,7 @@ export async function buscarContactosPorFiltro(filtro: FiltroLote): Promise<Cont
     if (whatsappEnviado) query = query.eq("whatsapp_enviado", whatsappEnviado === "si");
     if (llamadaRealizada) query = query.eq("llamada_realizada", llamadaRealizada === "si");
     if (busqueda) query = query.or(`razon_social.ilike.%${busqueda}%,nombre_comercial.ilike.%${busqueda}%`);
+    if (baseId) query = query.eq("base_id", baseId);
 
     const { data, error } = await query;
     if (error) return { error: `contactos: ${error.message}` };
@@ -79,6 +82,7 @@ export async function buscarContactosPorFiltro(filtro: FiltroLote): Promise<Cont
     if (whatsappEnviado) query = query.eq("whatsapp_enviado", whatsappEnviado === "si");
     if (llamadaRealizada) query = query.eq("llamada_realizada", llamadaRealizada === "si");
     if (busqueda) query = query.ilike("nombre", `%${busqueda}%`);
+    if (baseId) query = query.eq("base_id", baseId);
 
     const { data, error } = await query;
     if (error) return { error: `leads_base: ${error.message}` };

@@ -53,6 +53,7 @@ export function useContactosUnificados() {
     if (filtro.whatsappEnviado) params.set("whatsapp_enviado", filtro.whatsappEnviado);
     if (filtro.llamadaRealizada) params.set("llamada_realizada", filtro.llamadaRealizada);
     if (filtro.busqueda.trim()) params.set("busqueda", filtro.busqueda.trim());
+    if (filtro.baseId) params.set("base_id", filtro.baseId);
 
     const res = await fetch(`/api/admin/crm/lote?${params.toString()}`);
     const data = await res.json();

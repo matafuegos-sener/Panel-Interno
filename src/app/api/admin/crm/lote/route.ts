@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
   const whatsappEnviado = searchParams.get("whatsapp_enviado") || "";
   const llamadaRealizada = searchParams.get("llamada_realizada") || "";
   const busqueda = searchParams.get("busqueda")?.trim() || "";
+  const baseId = searchParams.get("base_id") || "";
 
   const resultado = await buscarContactosPorFiltro({
     categoria,
@@ -53,6 +54,7 @@ export async function GET(req: NextRequest) {
     whatsappEnviado,
     llamadaRealizada,
     busqueda,
+    baseId,
   });
   if ("error" in resultado) {
     return NextResponse.json({ error: resultado.error }, { status: 500 });

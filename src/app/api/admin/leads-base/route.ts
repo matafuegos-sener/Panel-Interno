@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   const whatsappEnviado = searchParams.get("whatsapp_enviado") || "";
   const llamadaRealizada = searchParams.get("llamada_realizada") || "";
   const busqueda = searchParams.get("busqueda")?.trim() || "";
+  const baseId = searchParams.get("base_id") || "";
 
   // select("*") a propósito, no una lista fija de columnas: este endpoint lo
   // usan tanto BaseTrackingView (solo lectura, columnas viejas) como el CRM
@@ -42,6 +43,7 @@ export async function GET(req: NextRequest) {
     if (whatsappEnviado) query = query.eq("whatsapp_enviado", whatsappEnviado === "si");
     if (llamadaRealizada) query = query.eq("llamada_realizada", llamadaRealizada === "si");
     if (busqueda) query = query.ilike("nombre", `%${busqueda}%`);
+    if (baseId) query = query.eq("base_id", baseId);
 
     const { data, error } = await query;
     if (error) {

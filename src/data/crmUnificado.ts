@@ -152,6 +152,7 @@ export interface FiltroContactosState {
   whatsappEnviado: "" | "si" | "no";
   llamadaRealizada: "" | "si" | "no";
   busqueda: string;
+  baseId: string;
 }
 
 export const FILTRO_VACIO: FiltroContactosState = {
@@ -164,4 +165,5 @@ export const FILTRO_VACIO: FiltroContactosState = {
   whatsappEnviado: "",
   llamadaRealizada: "",
   busqueda: "",
+  baseId: "",
 };
