@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
           dimensions: [{ name: "date" }],
           metrics: [{ name: "activeUsers" }, { name: "sessions" }, { name: "screenPageViews" }, { name: "averageSessionDuration" }, { name: "engagementRate" }],
           orderBys: [{ dimension: { dimensionName: "date" } }],
+          metricAggregations: ["TOTAL"],
         },
         {
           dateRanges,

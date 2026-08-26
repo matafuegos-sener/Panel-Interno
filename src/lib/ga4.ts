@@ -20,6 +20,7 @@ export interface ReportRequest {
   dimensionFilter?: unknown;
   orderBys?: unknown[];
   limit?: number;
+  metricAggregations?: string[];
 }
 
 export interface ReportRow {

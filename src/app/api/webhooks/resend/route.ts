@@ -64,12 +64,13 @@ export async function POST(req: NextRequest) {
 
   await supabaseAdmin.from("tandas_envio_items").update({ resend_estado: nuevoEstado }).eq("resend_id", emailId);
 
-  // Bloquea la casilla para que no se le vuelva a mandar (ver conversación
-  // 2026-08-14) -- solo en rebote duro (Permanent) o queja de spam. Un
-  // rebote Transient (buzón lleno, mensaje muy pesado, etc.) no bloquea:
-  // puede resolverse solo, bloquear ahí sería definitivo por un problema
-  // temporal.
-  const debeBloquear = nuevoEstado === "quejado" || (nuevoEstado === "rebotado" && evento.data.bounce?.type === "Permanent");
+  // Bloquea la casilla para que no se le vuelva a mandar -- cualquier
+  // rebote (Permanent o Transient) o queja de spam. Antes el Transient no
+  // bloqueaba (razonamiento: "puede resolverse solo"), pero decisión de
+  // Baltasar 2026-08-24: prefiere no arriesgarse a repetir el mismo rebote
+  // -- una casilla que rebotó una vez, aunque sea temporal, se trata como
+  // vía muerta de acá en adelante. Ver build-log 2026-08-24.
+  const debeBloquear = nuevoEstado === "quejado" || nuevoEstado === "rebotado";
   if (debeBloquear && actual?.contacto_id && actual?.tabla_origen) {
     await supabaseAdmin
       .from(actual.tabla_origen)
