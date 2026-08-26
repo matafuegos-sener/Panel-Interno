@@ -196,7 +196,7 @@ function SerieDiaria({ serie }: { serie: { fecha: string; usuarios: number }[] }
   return (
     <div className="flex items-end gap-1 h-32">
       {serie.map((d) => (
-        <div key={d.fecha} className="flex-1 flex flex-col items-center justify-end gap-1.5 group" title={`${d.fecha}: ${d.usuarios}`}>
+        <div key={d.fecha} className="flex-1 h-full flex flex-col items-center justify-end gap-1.5 group" title={`${d.fecha}: ${d.usuarios}`}>
           <div
             className="w-full rounded-t bg-[var(--color-brand-red)] group-hover:bg-[var(--color-brand-red-dark)] transition-colors min-h-[2px]"
             style={{ height: `${(d.usuarios / max) * 100}%` }}
