@@ -179,23 +179,17 @@ function MensajeForm({
 
   // Mail soporta HTML real (**negrita** -> <strong>, [texto](url) -> <a>,
   // ver lib/plantillas.ts). WhatsApp no interpreta markdown -- su negrita
-  // real es *un solo asterisco*, y un link ahí es la URL pelada, WhatsApp la
-  // auto-detecta y la previsualiza sola, no admite texto de anchor.
-  const URL_SITIO = "https://matafuegossener.com.ar";
-
+  // real es *un solo asterisco*.
   function aplicarNegrita() {
     const marca = canal === "whatsapp" ? "*" : "**";
     envolverSeleccion(marca, marca, "texto");
   }
 
-  // Mismo gesto que Negrita: un click, sin diálogo. La URL del sitio es
-  // siempre la misma para esta campaña, no hace falta preguntarla cada vez.
+  // Inserta el placeholder, igual que [EMPRESA] -- la URL real (con su
+  // mask /wa o /mail y el UTM) se resuelve recién al mandar, en
+  // reemplazarVariables (lib/plantillas.ts), según el canal de la plantilla.
   function aplicarLink() {
-    if (canal === "whatsapp") {
-      insertarEnCursor(URL_SITIO);
-      return;
-    }
-    envolverSeleccion("[", `](${URL_SITIO})`, "texto del link");
+    insertarEnCursor("[LINK WEB]");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -285,9 +279,9 @@ function MensajeForm({
             type="button"
             onClick={aplicarLink}
             className={btnSecondaryClass}
-            title={canal === "whatsapp" ? "Inserta la URL pelada — WhatsApp la previsualiza sola" : "Envuelve la selección como link real del mail"}
+            title="Inserta el placeholder — se reemplaza por el link real al mandar"
           >
-            Link
+            LINK A WEB
           </button>
           {error && <span className="text-sm text-red-600">{error}</span>}
         </div>

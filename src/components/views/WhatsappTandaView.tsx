@@ -114,7 +114,7 @@ export default function WhatsappTandaView({ tandaId }: Props) {
 
   async function copiarYAbrir(fila: FilaTanda) {
     if (!fila.telefono || !plantilla) return;
-    const mensaje = reemplazarVariables(plantilla.cuerpo, fila.nombre);
+    const mensaje = reemplazarVariables(plantilla.cuerpo, fila.nombre, "whatsapp");
     window.open(waLink(fila.telefono, mensaje), "_blank");
     try {
       await navigator.clipboard.writeText(mensaje);
@@ -177,7 +177,7 @@ export default function WhatsappTandaView({ tandaId }: Props) {
                 </label>
               </div>
             </div>
-            <p className="text-sm whitespace-pre-line text-[var(--color-text-muted)] mb-3">{reemplazarVariables(plantilla.cuerpo, f.nombre)}</p>
+            <p className="text-sm whitespace-pre-line text-[var(--color-text-muted)] mb-3">{reemplazarVariables(plantilla.cuerpo, f.nombre, "whatsapp")}</p>
             <button type="button" onClick={() => copiarYAbrir(f)} disabled={!f.telefono} className={btnPrimaryClass}>
               Copiar mensaje y abrir WhatsApp
             </button>

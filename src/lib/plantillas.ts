@@ -1,7 +1,21 @@
-const PLACEHOLDER_EMPRESA = "[EMPRESA]";
+import { Canal } from "@/data/mensajes";
 
-export function reemplazarVariables(texto: string, nombreEmpresa: string): string {
-  return texto.split(PLACEHOLDER_EMPRESA).join(nombreEmpresa);
+const PLACEHOLDER_EMPRESA = "[EMPRESA]";
+const PLACEHOLDER_LINK = "[LINK WEB]";
+
+// Un solo lugar con la URL real -- si el redirect de casa-sener (ver
+// next.config.ts) cambia de path, se corrige acá y no en cada plantilla
+// guardada. WhatsApp no soporta anchor text (auto-previsualiza la URL
+// pelada); mail sí, vía la sintaxis [texto](url) de textoAHtml.
+const LINK_WEB: Record<Canal, string> = {
+  whatsapp: "https://www.matafuegossener.com.ar/wa",
+  mail: "[matafuegossener.com.ar](https://www.matafuegossener.com.ar/mail)",
+};
+
+export function reemplazarVariables(texto: string, nombreEmpresa: string, canal: Canal): string {
+  return texto
+    .split(PLACEHOLDER_EMPRESA).join(nombreEmpresa)
+    .split(PLACEHOLDER_LINK).join(LINK_WEB[canal]);
 }
 
 function escapeHtml(texto: string): string {

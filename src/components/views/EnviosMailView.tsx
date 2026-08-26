@@ -133,8 +133,8 @@ export default function EnviosMailView() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         destinatario: testMail.trim(),
-        asunto: nombre ? reemplazarVariables(asunto, nombre) : asunto,
-        cuerpo: `${nombre ? reemplazarVariables(cuerpo, nombre) : cuerpo}\n\n${firma}\n\n${OPT_OUT_TEXTO}`,
+        asunto: nombre ? reemplazarVariables(asunto, nombre, "mail") : asunto,
+        cuerpo: `${nombre ? reemplazarVariables(cuerpo, nombre, "mail") : cuerpo}\n\n${firma}\n\n${OPT_OUT_TEXTO}`,
       }),
     });
     const data = await res.json();

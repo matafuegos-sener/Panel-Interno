@@ -158,8 +158,8 @@ export async function ejecutarEnvioMail(params: {
     }
 
     const nombre = nombreDeFila(tabla, fila);
-    const asuntoFinal = textoAPlano(reemplazarVariables(asunto, nombre));
-    const cuerpoFinal = reemplazarVariables(cuerpo, nombre);
+    const asuntoFinal = textoAPlano(reemplazarVariables(asunto, nombre, "mail"));
+    const cuerpoFinal = reemplazarVariables(cuerpo, nombre, "mail");
     const resultado = await enviarMail({
       to: email,
       subject: asuntoFinal,
