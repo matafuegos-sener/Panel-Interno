@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { PauseCircle, PlayCircle, Trash2 } from "lucide-react";
 import { useCampanaMail } from "@/lib/useCampanaMail";
 import { fmtFecha } from "@/lib/fechas";
@@ -15,47 +16,45 @@ function fmtFechaHora(iso: string): string {
 // items fijos, corre día a día hasta agotar el filtro contra la base), pero
 // tiene que verse como un envío activo más, no como un cartel aparte.
 export default function CampanaMailRow() {
-  const { campana, cupoHoy, progreso, cargando, recargar } = useCampanaMail();
+  const { campana, cupoHoy, progreso, cargando, recargar, actualizarEstado } = useCampanaMail();
+  // Bloquea los botones mientras hay un pedido en curso -- antes, si tardaba,
+  // un segundo click mandaba un segundo pedido antes de que el primero
+  // volviera, y no había forma de saber si ya había funcionado.
+  const [enProceso, setEnProceso] = useState(false);
 
-  // Antes ninguna de las 4 acciones revisaba si el pedido había fallado --
-  // un error de servidor (ej. constraint de la base) quedaba mudo y solo se
-  // veía un recargar() que traía la campaña sin cambios, como si el click no
-  // hubiera hecho nada.
-  async function llamarYRecargar(fetchPromise: Promise<Response>) {
-    const res = await fetchPromise;
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
+  async function cambiarEstado(accion: "pausar" | "reanudar") {
+    if (!campana || enProceso) return;
+    setEnProceso(true);
+    const res = await fetch("/api/admin/mail/campana", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: campana.id, accion }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.campana) {
+      // Actualiza directo con la fila que devuelve el PATCH -- pausar/reanudar
+      // no cambian cuántos elegibles quedan, así que no hace falta volver a
+      // pedir /api/admin/mail/campana (ese GET recorre toda la base filtrada
+      // para calcular el progreso, lento y sin sentido acá).
+      actualizarEstado(data.campana.estado);
+    } else {
       window.alert(`No se pudo completar la acción: ${data.error ?? res.statusText}`);
     }
-    recargar();
+    setEnProceso(false);
   }
 
-  function pausar() {
-    if (!campana) return;
-    llamarYRecargar(
-      fetch("/api/admin/mail/campana", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: campana.id, accion: "pausar" }),
-      })
-    );
-  }
-
-  function reanudar() {
-    if (!campana) return;
-    llamarYRecargar(
-      fetch("/api/admin/mail/campana", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: campana.id, accion: "reanudar" }),
-      })
-    );
-  }
-
-  function eliminar() {
-    if (!campana) return;
+  async function eliminar() {
+    if (!campana || enProceso) return;
     if (!window.confirm("¿Eliminar esta campaña? No se puede deshacer.")) return;
-    llamarYRecargar(fetch(`/api/admin/mail/campana?id=${campana.id}&modo=eliminar`, { method: "DELETE" }));
+    setEnProceso(true);
+    const res = await fetch(`/api/admin/mail/campana?id=${campana.id}&modo=eliminar`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      window.alert(`No se pudo eliminar: ${data.error ?? res.statusText}`);
+      setEnProceso(false);
+      return;
+    }
+    recargar();
   }
 
   // Antes escondía toda la fila mientras `cargando` (cada recargar() la
@@ -113,8 +112,9 @@ export default function CampanaMailRow() {
           {pausada ? (
             <button
               type="button"
-              onClick={reanudar}
-              className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-brand-red)] hover:bg-[var(--color-surface-subtle)]"
+              onClick={() => cambiarEstado("reanudar")}
+              disabled={enProceso}
+              className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-brand-red)] hover:bg-[var(--color-surface-subtle)] disabled:opacity-40"
               aria-label="Reanudar campaña"
               title="Reanudar campaña"
             >
@@ -123,8 +123,9 @@ export default function CampanaMailRow() {
           ) : (
             <button
               type="button"
-              onClick={pausar}
-              className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-brand-red)] hover:bg-[var(--color-surface-subtle)]"
+              onClick={() => cambiarEstado("pausar")}
+              disabled={enProceso}
+              className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-brand-red)] hover:bg-[var(--color-surface-subtle)] disabled:opacity-40"
               aria-label="Pausar campaña"
               title="Pausar campaña"
             >
@@ -134,7 +135,8 @@ export default function CampanaMailRow() {
           <button
             type="button"
             onClick={eliminar}
-            className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-red-600 hover:bg-red-50"
+            disabled={enProceso}
+            className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-red-600 hover:bg-red-50 disabled:opacity-40"
             aria-label="Eliminar campaña"
             title="Eliminar campaña"
           >

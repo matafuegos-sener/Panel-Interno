@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { capacidadRestanteHoy } from "@/lib/mailTope";
-import { buscarContactosPorFiltro } from "@/lib/contactosLote";
-import { CATEGORIA_PROSPECTO_CERO } from "@/data/crm";
 
 // Campaña automática de mail (0013_campana_mail.sql, pausar agregado en
-// 0018_campana_mail_pausar.sql): GET trae la activa o pausada (si hay, con el
-// cupo de hoy embebido para mostrar progreso real), POST inicia una nueva
+// 0018_campana_mail_pausar.sql): GET trae la activa o pausada (si hay) con el
+// cupo de hoy -- rápido, no recorre la base. El progreso real (cuánto falta)
+// vive aparte en /api/admin/mail/campana/progreso porque recorrer toda la
+// base filtrada (miles de filas) es lento y no hace falta bloquear con eso
+// ni la aparición de la fila ni pausar/reanudar. POST inicia una nueva
 // (solo si no hay otra activa/pausada), PATCH pausa/reanuda, DELETE frena
 // (terminal, `?modo=eliminar` la borra directo en vez de dejarla cancelada).
 // El cron diario (/api/cron/mail-diario) es el único que la hace avanzar --
@@ -27,23 +28,7 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
   const cupoHoy = await capacidadRestanteHoy(new Date());
-
-  let progreso: { elegiblesRestantes: number; diasRestantes: number } | null = null;
-  if (data) {
-    // Mismo filtro de elegibilidad que aplica el cron (mail-diario/route.ts)
-    // antes de mandar -- así "cuánto falta" es el número real, no una
-    // estimación aparte que se puede desincronizar del criterio real de envío.
-    const lote = await buscarContactosPorFiltro(data.filtro ?? {});
-    if (!("error" in lote)) {
-      const elegiblesRestantes = lote.filter(
-        (c) => c.email && !c.mailEnviado && !c.mailBloqueado && c.categoria === CATEGORIA_PROSPECTO_CERO
-      ).length;
-      const diasRestantes = cupoHoy.tope > 0 ? Math.ceil(elegiblesRestantes / cupoHoy.tope) : 0;
-      progreso = { elegiblesRestantes, diasRestantes };
-    }
-  }
-
-  return NextResponse.json({ campana: data ?? null, cupoHoy, progreso }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ campana: data ?? null, cupoHoy }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(req: NextRequest) {

@@ -41,14 +41,33 @@ export function useCampanaMail() {
       .then((data) => {
         setCampana(data?.campana ?? null);
         setCupoHoy(data?.cupoHoy ?? null);
-        setProgreso(data?.progreso ?? null);
+        setCargando(false);
+        // Pedido aparte, sin esperar -- recorre toda la base filtrada, es
+        // lento, y no tiene por qué demorar la aparición de la fila ni el
+        // resto de los datos (que ya están listos arriba).
+        if (data?.campana) {
+          fetch("/api/admin/mail/campana/progreso")
+            .then((r) => r.json())
+            .then((d) => setProgreso(d?.progreso ?? null));
+        } else {
+          setProgreso(null);
+        }
       })
-      .finally(() => setCargando(false));
+      .catch(() => setCargando(false));
   }
 
   useEffect(() => {
     recargar();
   }, []);
 
-  return { campana, cupoHoy, progreso, cargando, recargar };
+  // Pausar/reanudar solo cambian `estado` -- no hace falta volver a pedir
+  // /api/admin/mail/campana entero (ese GET recorre toda la base filtrada
+  // para calcular `progreso`, ~8.900 filas hoy, lento y sin sentido para un
+  // cambio de estado). El PATCH ya devuelve la fila actualizada; con eso
+  // alcanza para reflejarlo acá sin recargar nada.
+  function actualizarEstado(estado: CampanaMail["estado"]) {
+    setCampana((prev) => (prev ? { ...prev, estado } : prev));
+  }
+
+  return { campana, cupoHoy, progreso, cargando, recargar, actualizarEstado };
 }
