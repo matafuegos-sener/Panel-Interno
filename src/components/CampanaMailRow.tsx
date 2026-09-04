@@ -17,41 +17,59 @@ function fmtFechaHora(iso: string): string {
 export default function CampanaMailRow() {
   const { campana, cupoHoy, progreso, cargando, recargar } = useCampanaMail();
 
-  async function pausar() {
-    if (!campana) return;
-    await fetch("/api/admin/mail/campana", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: campana.id, accion: "pausar" }),
-    });
+  // Antes ninguna de las 4 acciones revisaba si el pedido había fallado --
+  // un error de servidor (ej. constraint de la base) quedaba mudo y solo se
+  // veía un recargar() que traía la campaña sin cambios, como si el click no
+  // hubiera hecho nada.
+  async function llamarYRecargar(fetchPromise: Promise<Response>) {
+    const res = await fetchPromise;
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      window.alert(`No se pudo completar la acción: ${data.error ?? res.statusText}`);
+    }
     recargar();
   }
 
-  async function reanudar() {
+  function pausar() {
     if (!campana) return;
-    await fetch("/api/admin/mail/campana", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: campana.id, accion: "reanudar" }),
-    });
-    recargar();
+    llamarYRecargar(
+      fetch("/api/admin/mail/campana", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: campana.id, accion: "pausar" }),
+      })
+    );
   }
 
-  async function frenar() {
+  function reanudar() {
+    if (!campana) return;
+    llamarYRecargar(
+      fetch("/api/admin/mail/campana", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: campana.id, accion: "reanudar" }),
+      })
+    );
+  }
+
+  function frenar() {
     if (!campana) return;
     if (!window.confirm("¿Frenar la campaña automática? Lo que ya se mandó queda mandado, pero no va a seguir sola. No se puede reanudar después.")) return;
-    await fetch(`/api/admin/mail/campana?id=${campana.id}`, { method: "DELETE" });
-    recargar();
+    llamarYRecargar(fetch(`/api/admin/mail/campana?id=${campana.id}`, { method: "DELETE" }));
   }
 
-  async function eliminar() {
+  function eliminar() {
     if (!campana) return;
     if (!window.confirm("¿Eliminar esta campaña? No se puede deshacer.")) return;
-    await fetch(`/api/admin/mail/campana?id=${campana.id}&modo=eliminar`, { method: "DELETE" });
-    recargar();
+    llamarYRecargar(fetch(`/api/admin/mail/campana?id=${campana.id}&modo=eliminar`, { method: "DELETE" }));
   }
 
-  if (cargando || !campana) return null;
+  // Antes escondía toda la fila mientras `cargando` (cada recargar() la
+  // ponía en true, incluida la que dispara pausar/reanudar) -- la fila
+  // desaparecía y volvía a aparecer con cada click, aunque el pedido hubiera
+  // funcionado. Ahora solo se esconde si todavía no hay datos (carga inicial).
+  if (!campana && cargando) return null;
+  if (!campana) return null;
 
   const pausada = campana.estado === "pausada";
   const meta = progreso ? campana.total_enviados + progreso.elegiblesRestantes : null;
