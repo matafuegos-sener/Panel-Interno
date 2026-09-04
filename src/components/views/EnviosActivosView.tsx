@@ -1,6 +1,7 @@
 "use client";
 
 import EnviosActivosPanel from "@/components/EnviosActivosPanel";
+import CampanaMailBanner from "@/components/CampanaMailBanner";
 import { TandaEnvio } from "@/data/tandas";
 
 const TITULO: Record<TandaEnvio["tipo"], string> = { mail: "Envíos activos — Mails", whatsapp: "Envíos activos — WhatsApp" };
@@ -16,6 +17,7 @@ export default function EnviosActivosView({ tipo }: { tipo: TandaEnvio["tipo"] }
         <h1 className="text-xl font-bold text-[var(--color-brand-dark)]">{TITULO[tipo]}</h1>
         <p className="text-sm text-[var(--color-text-muted)]">{SUBTITULO[tipo]}</p>
       </div>
+      {tipo === "mail" && <CampanaMailBanner />}
       <EnviosActivosPanel tipo={tipo} />
     </div>
   );
