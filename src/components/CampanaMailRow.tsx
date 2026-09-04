@@ -1,6 +1,6 @@
 "use client";
 
-import { PauseCircle, PlayCircle, StopCircle, Trash2 } from "lucide-react";
+import { PauseCircle, PlayCircle, Trash2 } from "lucide-react";
 import { useCampanaMail } from "@/lib/useCampanaMail";
 import { fmtFecha } from "@/lib/fechas";
 import { panelCardClass } from "@/components/formStyles";
@@ -50,12 +50,6 @@ export default function CampanaMailRow() {
         body: JSON.stringify({ id: campana.id, accion: "reanudar" }),
       })
     );
-  }
-
-  function frenar() {
-    if (!campana) return;
-    if (!window.confirm("¿Frenar la campaña automática? Lo que ya se mandó queda mandado, pero no va a seguir sola. No se puede reanudar después.")) return;
-    llamarYRecargar(fetch(`/api/admin/mail/campana?id=${campana.id}`, { method: "DELETE" }));
   }
 
   function eliminar() {
@@ -137,15 +131,6 @@ export default function CampanaMailRow() {
               <PauseCircle className="w-4 h-4" />
             </button>
           )}
-          <button
-            type="button"
-            onClick={frenar}
-            className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-red-600 hover:bg-red-50"
-            aria-label="Frenar campaña"
-            title="Frenar campaña (no se puede reanudar después)"
-          >
-            <StopCircle className="w-4 h-4" />
-          </button>
           <button
             type="button"
             onClick={eliminar}
