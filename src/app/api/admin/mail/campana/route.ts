@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { capacidadRestanteHoy } from "@/lib/mailTope";
+import { buscarContactosPorFiltro } from "@/lib/contactosLote";
+import { CATEGORIA_PROSPECTO_CERO } from "@/data/crm";
 
 // Campaña automática de mail (0013_campana_mail.sql, pausar agregado en
 // 0018_campana_mail_pausar.sql): GET trae la activa o pausada (si hay, con el
@@ -25,7 +27,23 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
   const cupoHoy = await capacidadRestanteHoy(new Date());
-  return NextResponse.json({ campana: data ?? null, cupoHoy }, { headers: { "Cache-Control": "no-store" } });
+
+  let progreso: { elegiblesRestantes: number; diasRestantes: number } | null = null;
+  if (data) {
+    // Mismo filtro de elegibilidad que aplica el cron (mail-diario/route.ts)
+    // antes de mandar -- así "cuánto falta" es el número real, no una
+    // estimación aparte que se puede desincronizar del criterio real de envío.
+    const lote = await buscarContactosPorFiltro(data.filtro ?? {});
+    if (!("error" in lote)) {
+      const elegiblesRestantes = lote.filter(
+        (c) => c.email && !c.mailEnviado && !c.mailBloqueado && c.categoria === CATEGORIA_PROSPECTO_CERO
+      ).length;
+      const diasRestantes = cupoHoy.tope > 0 ? Math.ceil(elegiblesRestantes / cupoHoy.tope) : 0;
+      progreso = { elegiblesRestantes, diasRestantes };
+    }
+  }
+
+  return NextResponse.json({ campana: data ?? null, cupoHoy, progreso }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(req: NextRequest) {

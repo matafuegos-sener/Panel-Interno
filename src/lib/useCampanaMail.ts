@@ -18,12 +18,20 @@ export interface CupoHoy {
   restante: number;
 }
 
+export interface ProgresoCampana {
+  elegiblesRestantes: number;
+  diasRestantes: number;
+}
+
 // Misma campaña que administra EnviosMailView.tsx (POST) -- este hook la lee
-// (activa o pausada) junto con el cupo diario de hoy, para poder mostrarla
-// como una fila más en Envíos activos, con pausar/reanudar/frenar/eliminar.
+// (activa o pausada) junto con el cupo diario de hoy y el progreso real
+// (cuántos elegibles quedan contra el filtro guardado, mismo criterio que
+// usa el cron para mandar), para poder mostrarla como una fila más en
+// Envíos activos, con pausar/reanudar/frenar/eliminar.
 export function useCampanaMail() {
   const [campana, setCampana] = useState<CampanaMail | null>(null);
   const [cupoHoy, setCupoHoy] = useState<CupoHoy | null>(null);
+  const [progreso, setProgreso] = useState<ProgresoCampana | null>(null);
   const [cargando, setCargando] = useState(true);
 
   function recargar() {
@@ -33,6 +41,7 @@ export function useCampanaMail() {
       .then((data) => {
         setCampana(data?.campana ?? null);
         setCupoHoy(data?.cupoHoy ?? null);
+        setProgreso(data?.progreso ?? null);
       })
       .finally(() => setCargando(false));
   }
@@ -41,5 +50,5 @@ export function useCampanaMail() {
     recargar();
   }, []);
 
-  return { campana, cupoHoy, cargando, recargar };
+  return { campana, cupoHoy, progreso, cargando, recargar };
 }

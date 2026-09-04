@@ -15,7 +15,7 @@ function fmtFechaHora(iso: string): string {
 // items fijos, corre día a día hasta agotar el filtro contra la base), pero
 // tiene que verse como un envío activo más, no como un cartel aparte.
 export default function CampanaMailRow() {
-  const { campana, cupoHoy, cargando, recargar } = useCampanaMail();
+  const { campana, cupoHoy, progreso, cargando, recargar } = useCampanaMail();
 
   async function pausar() {
     if (!campana) return;
@@ -54,7 +54,13 @@ export default function CampanaMailRow() {
   if (cargando || !campana) return null;
 
   const pausada = campana.estado === "pausada";
-  const pct = cupoHoy && cupoHoy.tope > 0 ? Math.round((cupoHoy.yaEnviadosHoy / cupoHoy.tope) * 100) : 0;
+  const meta = progreso ? campana.total_enviados + progreso.elegiblesRestantes : null;
+  // Progreso real = enviados hasta ahora sobre el total de la base que
+  // cumple el filtro hoy (elegibles restantes + ya enviados) -- no el cupo
+  // de hoy. El cupo lleno (ej. 50/50) no significa campaña terminada, solo
+  // que hoy ya no manda más; por eso va aparte, como texto, no como barra.
+  const pct = meta && meta > 0 ? Math.round((campana.total_enviados / meta) * 100) : 0;
+  const cupoLleno = !!cupoHoy && cupoHoy.restante <= 0;
 
   return (
     <div className={panelCardClass}>
@@ -68,10 +74,29 @@ export default function CampanaMailRow() {
           <div className="h-1.5 w-full max-w-[220px] bg-[var(--color-bg-warm)] rounded-full overflow-hidden">
             <div className="h-full bg-[var(--color-brand-red)] transition-all" style={{ width: `${pct}%` }} />
           </div>
+          <p className="text-xs text-[var(--color-text-muted)] mt-1">
+            {progreso ? (
+              <>
+                <strong className="text-[var(--color-brand-dark)]">{campana.total_enviados}</strong> enviados de{" "}
+                <strong className="text-[var(--color-brand-dark)]">{meta}</strong> en la base filtrada — faltan{" "}
+                <strong className="text-[var(--color-brand-dark)]">{progreso.elegiblesRestantes}</strong>
+                {progreso.diasRestantes > 0 && <> (~{progreso.diasRestantes} día{progreso.diasRestantes === 1 ? "" : "s"} más al ritmo actual)</>}
+              </>
+            ) : (
+              "Calculando cuántos faltan…"
+            )}
+            {cupoHoy && (
+              <>
+                {" "}
+                — cupo de hoy: {cupoHoy.yaEnviadosHoy}/{cupoHoy.tope}
+                {cupoLleno && " (ya se usó todo, retoma mañana)"}
+              </>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <span className={`text-xs px-2 py-1 rounded ${pausada ? "bg-gray-100 text-gray-700" : "bg-amber-100 text-amber-800"}`}>
-            {pausada ? "Pausada" : cupoHoy ? `${cupoHoy.yaEnviadosHoy}/${cupoHoy.tope} hoy` : "En curso"}
+            {pausada ? "Pausada" : "En curso"}
           </span>
           {pausada ? (
             <button
