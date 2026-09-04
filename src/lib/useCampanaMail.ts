@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 export interface CampanaMail {
   id: string;
-  estado: "activa" | "completada" | "cancelada";
+  estado: "activa" | "pausada" | "completada" | "cancelada";
   asunto: string;
   cuerpo: string;
   creado_en: string;
@@ -12,18 +12,28 @@ export interface CampanaMail {
   total_enviados: number;
 }
 
-// Misma campaña que administra EnviosMailView.tsx (POST/DELETE) -- este hook
-// solo la lee, para poder mostrar su estado también en Envíos activos (donde
-// se nota si el cupo diario ya está gastado, pero antes no se veía por qué).
+export interface CupoHoy {
+  tope: number;
+  yaEnviadosHoy: number;
+  restante: number;
+}
+
+// Misma campaña que administra EnviosMailView.tsx (POST) -- este hook la lee
+// (activa o pausada) junto con el cupo diario de hoy, para poder mostrarla
+// como una fila más en Envíos activos, con pausar/reanudar/frenar/eliminar.
 export function useCampanaMail() {
   const [campana, setCampana] = useState<CampanaMail | null>(null);
+  const [cupoHoy, setCupoHoy] = useState<CupoHoy | null>(null);
   const [cargando, setCargando] = useState(true);
 
   function recargar() {
     setCargando(true);
     fetch("/api/admin/mail/campana")
       .then((r) => r.json())
-      .then((data) => setCampana(data?.campana ?? null))
+      .then((data) => {
+        setCampana(data?.campana ?? null);
+        setCupoHoy(data?.cupoHoy ?? null);
+      })
       .finally(() => setCargando(false));
   }
 
@@ -31,5 +41,5 @@ export function useCampanaMail() {
     recargar();
   }, []);
 
-  return { campana, cargando, recargar };
+  return { campana, cupoHoy, cargando, recargar };
 }
